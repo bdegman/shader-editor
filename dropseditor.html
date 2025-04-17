@@ -1,0 +1,3123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=720, height=1280" />
+  <title>Content Creation Tool with WebGL Warping</title>
+  <!-- Import available Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Asap+Condensed&family=Damion&family=Sigmar+One&family=Lobster&family=Lato&family=Baskervville&display=swap" rel="stylesheet">
+  <!-- Add Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg-color: #f0f0f0;
+      --text-color: #333;
+      --border-color: #ccc;
+      --input-bg: #fff;
+      --control-bg: #fff;
+      --heading-color: #111827;
+      --label-color: #374151;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --text-color: #fff;
+      --border-color: #333;
+      --input-bg: #2a2a2a;
+      --control-bg: #2a2a2a;
+      --heading-color: #e5e7eb;
+      --label-color: #9ca3af;
+    }
+
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .toolbar {
+      width: 250px;
+      background: var(--bg-color);
+      padding: 20px 10px;
+      overflow-y: auto;
+      border-left: 1px solid var(--border-color);
+      flex-shrink: 0;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+    .editor {
+      position: relative;
+      margin: 40px auto;
+      background: #ddd;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+    #bgCanvas, #overlayCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #bgCanvas { z-index: 0; }
+    #overlayCanvas {
+      z-index: 1;
+      background: transparent;
+    }
+    .toolbar h3 { margin-top: 20px; }
+    .control-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; }
+    #widgetControls {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      background: var(--control-bg);
+      display: none;
+    }
+    #psychedelicControls {
+      margin-top: 10px;
+      display: none;
+    }
+    #psychedelicControls label { font-size: 0.9em; margin-top: 5px; }
+    #glitchControls {
+      margin-top: 10px;
+      display: none;
+    }
+    #glitchControls label { font-size: 0.9em; margin-top: 5px; }
+    input[type="text"], input[type="number"], select {
+      background: var(--input-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+    }
+    .theme-switch {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--control-bg);
+      border-radius: 0.5rem;
+    }
+    .theme-switch label {
+      margin: 0;
+      color: var(--text-color);
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #2196F3;
+    }
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+    [data-theme="dark"] .slider {
+      background-color: #555;
+    }
+    [data-theme="dark"] .slider:before {
+      background-color: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="editor">
+    <canvas id="bgCanvas" width="720" height="1280"></canvas>
+    <canvas id="overlayCanvas" width="720" height="1280"></canvas>
+  </div>
+  <div class="toolbar">
+    <div class="theme-switch">
+      <label>Dark Mode</label>
+      <label class="switch">
+        <input type="checkbox" id="themeToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="space-y-4">
+      <div class="mt-4 p-4 rounded-lg shadow-sm dark:border-gray-700" style="background: var(--control-bg);">
+        <h4 class="text-lg font-medium mb-4" style="color: var(--heading-color)">Background Widget</h4>
+        <div class="control-group space-y-2">
+          <label for="backgroundUpload" class="block text-sm font-medium" style="color: var(--label-color)">Upload Background</label>
+          <input type="file" id="backgroundUpload" accept="image/*" class="block w-full text-sm text-gray-500 dark:text-gray-400
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-md file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900 dark:file:text-blue-300
+            hover:file:bg-blue-100 dark:hover:file:bg-blue-800"/>
+        </div>
+
+        <div class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <label class="block text-sm font-medium" style="color: var(--label-color)">Background Effects</label>
+          <div class="flex flex-col space-y-2">
+            <button onclick="applyBackgroundPreset('psychedelic')" 
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Psychedelic
+            </button>
+            <button onclick="applyBackgroundPreset('classicGlass')"
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Classic Glass
+            </button>
+            <button onclick="applyBackgroundPreset('glitch')"
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Glitch
+            </button>
+            <button onclick="applyBackgroundPreset('lensFlare')"
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Lens Flare
+            </button>
+            <button onclick="applyBackgroundPreset('frostedGlass')"
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Frosted Glass
+            </button>
+          </div>
+        </div>
+
+        <!-- Effect Controls -->
+        <div id="lensFlareControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div class="space-y-3">
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Flare Intensity: <span class="text-gray-500 dark:text-gray-400" id="flareIntensityValue">1.3</span>
+              </label>
+              <input type="range" id="flareIntensitySlider" min="0" max="2" step="0.1" value="1.3"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Flare Position X: <span class="text-gray-500 dark:text-gray-400" id="flarePosXValue">1.3</span>
+              </label>
+              <input type="range" id="flarePosXSlider" min="-0.5" max="1.5" step="0.01" value="1.3"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Flare Position Y: <span class="text-gray-500 dark:text-gray-400" id="flarePosYValue">-0.33</span>
+              </label>
+              <input type="range" id="flarePosYSlider" min="-0.5" max="1.5" step="0.01" value="-0.33"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Flare Scale: <span id="flareScaleValue" class="text-gray-500">3.0</span>
+              </label>
+              <input type="range" id="flareScaleSlider" min="0.2" max="3.0" step="0.1" value="3.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Position Wiggle: <span id="positionWiggleValue" class="text-gray-500">0.01</span>
+              </label>
+              <input type="range" id="positionWiggleSlider" min="0" max="0.1" step="0.01" value="0.01"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Rainbow Intensity: <span id="rainbowIntensityValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="rainbowIntensitySlider" min="0" max="1" step="0.1" value="1.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Animation Speed: <span id="flareSpeedValue" class="text-gray-500">2.0</span>
+              </label>
+              <input type="range" id="flareSpeedSlider" min="0" max="2" step="0.1" value="2.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Glow Size: <span id="glareSizeValue" class="text-gray-500">0.6</span>
+              </label>
+              <input type="range" id="glareSizeSlider" min="0.1" max="1" step="0.1" value="0.6"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Ray Count: <span id="rayCountValue" class="text-gray-500">48</span>
+              </label>
+              <input type="range" id="rayCountSlider" min="8" max="48" step="4" value="48"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Vignette Intensity: <span id="vignetteIntensityValue" class="text-gray-500">0.2</span>
+              </label>
+              <input type="range" id="vignetteIntensitySlider" min="0" max="1" step="0.1" value="0.2"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Noise Intensity: <span id="noiseIntensityValue" class="text-gray-500">0.3</span>
+              </label>
+              <input type="range" id="noiseIntensitySlider" min="0" max="0.3" step="0.01" value="0.3"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Zoom Effect: <span id="zoomEffectValue" class="text-gray-500">0.3</span>
+              </label>
+              <input type="range" id="zoomEffectSlider" min="0" max="1" step="0.01" value="0.3"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Zoom Speed: <span id="zoomSpeedValue" class="text-gray-500">0.06</span>
+              </label>
+              <input type="range" id="zoomSpeedSlider" min="0" max="0.5" step="0.01" value="0.06"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <div id="frostedGlassControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200">
+          <div class="space-y-3">
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Blur Amount: <span id="blurAmountValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="blurAmountSlider" min="0" max="3" step="0.1" value="1.0"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Distortion Amount: <span id="distortionAmountValue" class="text-gray-500">0.02</span>
+              </label>
+              <input type="range" id="distortionAmountSlider" min="0" max="0.1" step="0.001" value="0.02"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Noise Scale: <span id="noiseScaleValue" class="text-gray-500">5.0</span>
+              </label>
+              <input type="range" id="noiseScaleSlider" min="0.1" max="100" step="0.1" value="1.0"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Animation Speed: <span id="frostedAnimationSpeedValue" class="text-gray-500">0.2</span>
+              </label>
+              <input type="range" id="frostedAnimationSpeedSlider" min="0" max="1" step="0.01" value="0.2"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Effect Coverage: <span id="frostedEffectCoverageValue" class="text-gray-500">100</span>%
+              </label>
+              <input type="range" id="frostedEffectCoverageSlider" min="0" max="100" step="1" value="100"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <div id="classicGlassControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200">
+          <div class="space-y-3">
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Segments: <span id="segmentsValue" class="text-gray-500">10</span>
+              </label>
+              <input type="range" id="segmentsSlider" min="1" max="50" step="1" value="10" 
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Rotation: <span id="rotationValue" class="text-gray-500">0</span>
+              </label>
+              <input type="range" id="rotationSlider" min="0" max="360" step="1" value="0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Motion: <span id="motionValue" class="text-gray-500">0</span>
+              </label>
+              <input type="range" id="motionSlider" min="0" max="1" step="0.01" value="0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label for="animationSpeedSlider" class="block text-sm font-medium" style="color: var(--label-color)">Animation Speed: <span id="animationSpeedValue" class="text-gray-500">0.005</span></label>
+              <input type="range" id="animationSpeedSlider" min="0" max="0.01" step="0.001" value="0.005"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Image Aspect: <span id="imageAspectValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="imageAspectSlider" min="0.1" max="2.0" step="0.1" value="1.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Overlay Opacity: <span id="overlayOpacityValue" class="text-gray-500">50</span>
+              </label>
+              <input type="range" id="overlayOpacitySlider" min="0" max="100" step="1" value="50"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Overlay Color:
+                <input type="color" id="overlayColorPicker" value="#FFFFFF" 
+                  class="mt-1 block w-full h-8 rounded-md border-gray-300">
+              </label>
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Effect Coverage: <span id="effectCoverageValue" class="text-gray-500">100</span>%
+              </label>
+              <input type="range" id="effectCoverageSlider" min="0" max="100" step="1" value="100"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <div id="psychedelicControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200">
+          <div class="space-y-3">
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Vignette Intensity: <span id="vignetteValue" class="text-gray-500">0.5</span>
+              </label>
+              <input type="range" id="vignetteSlider" min="0" max="1" step="0.01" value="0.5"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Color Shift Offset: <span id="colorShiftValue" class="text-gray-500">5</span>
+              </label>
+              <input type="range" id="colorShiftSlider" min="0" max="20" step="1" value="5"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Zoom Factor: <span id="zoomValue" class="text-gray-500">1.2</span>
+              </label>
+              <input type="range" id="zoomSlider" min="0.5" max="3.0" step="0.01" value="1.2"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Red Channel: <span id="redMultiplierValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="redMultiplierSlider" min="0" max="2" step="0.1" value="1.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Green Channel: <span id="greenMultiplierValue" class="text-gray-500">0.6</span>
+              </label>
+              <input type="range" id="greenMultiplierSlider" min="0" max="2" step="0.1" value="0.6"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Blue Channel: <span id="blueMultiplierValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="blueMultiplierSlider" min="0" max="2" step="0.1" value="1.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Pulse Speed: <span id="pulseSpeedValue" class="text-gray-500">0.0</span>
+              </label>
+              <input type="range" id="pulseSpeedSlider" min="0" max="5" step="0.1" value="0.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Rotation Speed: <span id="rotationSpeedValue" class="text-gray-500">0.0</span>
+              </label>
+              <input type="range" id="rotationSpeedSlider" min="0" max="10" step="0.1" value="0.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Color Balance: <span id="colorBalanceValue" class="text-gray-500">0.4</span>
+              </label>
+              <input type="range" id="colorBalanceSlider" min="0" max="1" step="0.01" value="0.4"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <div id="glitchControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200">
+          <div class="space-y-3">
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Pixel Size: <span id="pixelSizeValue" class="text-gray-500">1.1</span>
+              </label>
+              <input type="range" id="pixelSizeSlider" min="0.1" max="50" step="0.1" value="1.1"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Pixel Spacing: <span id="pixelSpacingValue" class="text-gray-500">0.26</span>
+              </label>
+              <input type="range" id="pixelSpacingSlider" min="0" max="0.5" step="0.01" value="0.26"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Scale: <span id="glitchScaleValue" class="text-gray-500">1.3</span>
+              </label>
+              <input type="range" id="glitchScaleSlider" min="0.1" max="3.0" step="0.1" value="1.3"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Glow Intensity: <span id="glowIntensityValue" class="text-gray-500">0.0</span>
+              </label>
+              <input type="range" id="glowIntensitySlider" min="0" max="2" step="0.1" value="0.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Wave Speed: <span id="waveSpeedValue" class="text-gray-500">0.4</span>
+              </label>
+              <input type="range" id="waveSpeedSlider" min="0" max="5" step="0.1" value="0.4"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Wave Amplitude: <span id="waveAmplitudeValue" class="text-gray-500">0.007</span>
+              </label>
+              <input type="range" id="waveAmplitudeSlider" min="0" max="0.1" step="0.001" value="0.007"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Wave Size: <span id="waveSizeValue" class="text-gray-500">10.0</span>
+              </label>
+              <input type="range" id="waveSizeSlider" min="1" max="50" step="1" value="10"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <h5 class="text-sm font-medium text-gray-700 mb-3">Tint Controls</h5>
+              <div class="space-y-3">
+                <div class="control-group">
+                  <label class="block text-sm font-medium" style="color: var(--label-color)">Map Black To:</label>
+                  <input type="color" id="tintBlackColor" value="#2A0A4A"
+                    class="mt-1 block w-full h-8 rounded-md border-gray-300">
+                </div>
+                <div class="control-group">
+                  <label class="block text-sm font-medium" style="color: var(--label-color)">Map White To:</label>
+                  <input type="color" id="tintWhiteColor" value="#E6D5FF"
+                    class="mt-1 block w-full h-8 rounded-md border-gray-300">
+                </div>
+                <div class="control-group">
+                  <label class="block text-sm font-medium" style="color: var(--label-color)">
+                    Tint Amount: <span id="tintAmountValue" class="text-gray-500">100.0</span>%
+                  </label>
+                  <input type="range" id="tintAmountSlider" min="0" max="100" step="1" value="100"
+                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <h5 class="text-sm font-medium text-gray-700 mb-3">Pattern Style</h5>
+              <div class="control-group">
+                <label class="inline-flex items-center">
+                  <input type="checkbox" id="patternStyleToggle" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                  <span class="ml-2 text-sm text-gray-700">Use Geometric Patterns</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="glitch2Controls" class="mt-4 space-y-3 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <h4 class="text-lg font-medium text-gray-900 mb-4">Glitch 2 Effect</h4>
+        <div class="space-y-3">
+          <div class="control-group">
+            <label class="block text-sm font-medium" style="color: var(--label-color)">
+              Pixel Size: <span id="glitch2PixelSizeValue" class="text-gray-500">4.0</span>
+            </label>
+            <input type="range" id="glitch2PixelSizeSlider" min="1" max="20" step="0.5" value="4.0"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+          </div>
+          <div class="control-group">
+            <label class="block text-sm font-medium" style="color: var(--label-color)">
+              Glitch Intensity: <span id="glitch2IntensityValue" class="text-gray-500">0.5</span>
+            </label>
+            <input type="range" id="glitch2IntensitySlider" min="0" max="1" step="0.01" value="0.5"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+          </div>
+          <div class="control-group">
+            <label class="block text-sm font-medium" style="color: var(--label-color)">
+              Scanline Speed: <span id="glitch2ScanlineSpeedValue" class="text-gray-500">1.0</span>
+            </label>
+            <input type="range" id="glitch2ScanlineSpeedSlider" min="0" max="5" step="0.1" value="1.0"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+          </div>
+          <div class="control-group">
+            <label class="block text-sm font-medium" style="color: var(--label-color)">
+              Noise Amount: <span id="glitch2NoiseAmountValue" class="text-gray-500">0.2</span>
+            </label>
+            <input type="range" id="glitch2NoiseAmountSlider" min="0" max="1" step="0.01" value="0.2"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+          </div>
+        </div>
+      </div>      
+
+      <div id="widgetControls" class="mt-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style="background: var(--control-bg);">
+        <h4 class="text-lg font-medium mb-4" style="color: var(--heading-color)">Text Widget</h4>
+        <div class="space-y-4">
+          <div id="textWidgetControls" class="space-y-4">
+            <div class="control-group">
+              <label for="textInput" class="block text-sm font-medium" style="color: var(--label-color)">Enter Text</label>
+              <textarea id="textInput" placeholder="Your text here" rows="2" 
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-300"></textarea>
+            </div>
+
+            <div class="control-group">
+              <label for="fontSelect" class="block text-sm font-medium" style="color: var(--label-color)">Select Font</label>
+              <select id="fontSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-800 dark:text-gray-300">
+                <option value="Asap Condensed">Asap Condensed</option>
+                <option value="Damion">Damion</option>
+                <option value="Sigmar One">Sigmar</option>
+                <option value="Lobster">Lobster</option>
+                <option value="Lato">Lato</option>
+                <option value="Baskervville">Baskervville</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <label for="fontSelect" class="block text-sm font-medium" style="color: var(--label-color)">Select Color</label>
+              <select id="colorSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                <option value="#000000">#000000</option>
+                <option value="#FFFFFF">#FFFFFF</option>
+                <option value="#333333">#333333</option>
+                <option value="#CCCCCC">#CCCCCC</option>
+                <option value="#DC143C">#DC143C</option>
+                <option value="#4169E1">#4169E1</option>
+                <option value="#50C878">#50C878</option>
+                <option value="#FFD700">#FFD700</option>
+                <option value="#DA70D6">#DA70D6</option>
+                <option value="#FFB6C1">#FFB6C1</option>
+                <option value="#87CEEB">#87CEEB</option>
+                <option value="#98FF98">#98FF98</option>
+                <option value="#E6E6FA">#E6E6FA</option>
+                <option value="#E2725B">#E2725B</option>
+                <option value="#F5DEB3">#F5DEB3</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Opacity: <span id="textOpacityValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="textOpacitySlider" min="0" max="1" step="0.01" value="1.0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="control-group">
+              <label for="fontSelect" class="block text-sm font-medium" style="color: var(--label-color)">Blend Mode</label>
+              <select id="editBlendModeSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                <option value="normal">Normal</option>
+                <option value="multiply">Multiply</option>
+                <option value="screen">Screen</option>
+                <option value="overlay">Overlay</option>
+                <option value="darken">Darken</option>
+                <option value="lighten">Lighten</option>
+                <option value="color-dodge">Color Dodge</option>
+                <option value="color-burn">Color Burn</option>
+                <option value="hard-light">Hard Light</option>
+                <option value="soft-light">Soft Light</option>
+                <option value="difference">Difference</option>
+                <option value="exclusion">Exclusion</option>
+                <option value="hue">Hue</option>
+                <option value="saturation">Saturation</option>
+                <option value="color">Color</option>
+                <option value="luminosity">Luminosity</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Rotation: <span id="textRotationValue" class="text-gray-500">0</span>°
+              </label>
+              <input type="range" id="textRotationSlider" min="0" max="360" step="1" value="0"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="control-group">
+              <button onclick="addTextWidget()" 
+                class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Add Text
+              </button>
+            </div>
+
+            <div class="control-group" id="updateTextButtonContainer" style="display: none;">
+              <button onclick="updateSelectedTextWidget()" 
+                class="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Update Text
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticker Widget Controls -->
+      <div id="stickerControls" class="mt-4 p-4 rounded-lg dark:border-gray-700 shadow-sm" style="background: var(--control-bg);">
+        <h4 class="text-lg font-medium mb-4" style="color: var(--heading-color)">Sticker Widget</h4>
+        <div class="space-y-4">
+          <div class="control-group">
+            <label class="block text-sm font-medium" style="color: var(--label-color)">Upload Sticker</label>
+            <input type="file" id="stickerUpload" accept="image/*" 
+              class="block w-full text-sm text-gray-500 dark:text-gray-400
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900 dark:file:text-blue-300
+                hover:file:bg-blue-100 dark:hover:file:bg-blue-800"/>
+          </div>
+
+          <!-- Delete Sticker Button -->
+          <div class="control-group">
+            <button onclick="removeSelectedWidget()" 
+              class="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-red-700 dark:hover:bg-red-800">
+              Delete Selected Sticker
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Add this at the beginning of your script section
+    document.addEventListener('DOMContentLoaded', function() {
+      const themeToggle = document.getElementById('themeToggle');
+      
+      // Check for saved theme preference
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        themeToggle.checked = savedTheme === 'dark';
+      }
+      
+      // Theme toggle handler
+      themeToggle.addEventListener('change', function() {
+        const theme = this.checked ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+      });
+    });
+
+    /***** Global Variables *****/
+    let backgroundWidget = null;
+    const widgets = []; // for text and sticker widgets
+    let selectedWidget = null;
+    let isDragging = false;
+    let isScaling = false;
+    let dragOffset = { x: 0, y: 0 };
+    let initialScale = 1;
+    let initialMouseDist = 0;
+    const psychedelicParams = {
+      vignette: 0.5,
+      colorShift: 5,
+      zoom: 1.2,
+      redMultiplier: 1.0,
+      greenMultiplier: 0.6,
+      blueMultiplier: 1.0,
+      pulseSpeed: 0.0,
+      rotationSpeed: 0.0,
+      colorBalance: 0.4
+    };
+    const glitchParams = {
+      pixelSize: 1.1,
+      scale: 1.3,
+      spacing: 0.26,
+      tintBlackColor: [0.165, 0.039, 0.290], // #2A0A4A in RGB
+      tintWhiteColor: [0.902, 0.835, 1.000], // #E6D5FF in RGB
+      tintAmount: 1.0,
+      useGeometricPatterns: false,
+      glowIntensity: 2.0,
+      waveSpeed: 0.4,
+      waveAmplitude: 0.007,
+      waveSize: 10.0
+    };
+    const lensFlareParams = {
+      flareIntensity: 0.5,
+      flarePosition: [0.5, 0.5],
+      rainbowIntensity: 0.5,
+      flareSpeed: 0.5,
+      glareSize: 0.5,
+      rayCount: 12,
+      flareScale: 1.0,
+      positionWiggle: 0.1,
+      vignetteIntensity: 0.5,
+      noiseIntensity: 0.2,
+      zoomEffect: 0.3,
+      zoomSpeed: 0.06
+    };
+    
+    // Parameters for Glitch 2 effect
+    const glitch2Params = {
+      pixelSize: 4.0,
+      glitchIntensity: 0.5,
+      scanlineSpeed: 1.0,
+      noiseAmount: 0.2
+    };
+
+    // Classic Glass shader parameters
+    const classicGlassParams = {
+        segments: 10.0,
+        rotation: 0.0,
+        imageAspect: 1.0,
+        overlayOpacity: 50.0,
+        overlayColorWhite: [1.0, 1.0, 1.0],
+        effectCoverage: 1.0,
+        animationSpeed: 0.005
+    };
+
+    // Frosted Glass parameters
+    const frostedGlassParams = {
+      blurAmount: 5,
+      distortionAmount: 0.02,
+      noiseScale: 1,
+      effectCoverage: 1.0,
+      animationSpeed: 0.2,
+      ranges: {
+        blurAmount: { min: 0, max: 20, step: 0.5 },
+        distortionAmount: { min: 0, max: 0.1, step: 0.005 },
+        noiseScale: { min: 0.1, max: 100, step: 0.1 },
+        effectCoverage: { min: 0, max: 1, step: 0.01 },
+        animationSpeed: { min: 0, max: 2, step: 0.1 }
+      }
+    };
+
+    /***** WebGL Setup *****/
+    const bgCanvas = document.getElementById("bgCanvas");
+    const gl = bgCanvas.getContext("webgl");
+    if (!gl) { alert("WebGL not supported!"); }
+    
+    // Vertex shader is shared between all effects
+    const vertexShaderSource = `
+      attribute vec2 a_position;
+      attribute vec2 a_texCoord;
+      varying vec2 v_texCoord;
+      void main(){
+        gl_Position = vec4(a_position, 0, 1);
+        v_texCoord = a_texCoord;
+      }
+    `;
+    
+    // Psychedelic shader
+    const fragmentShaderSource = `
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_zoom;
+      uniform float u_vignette;
+      uniform float u_colorShift;
+      uniform float u_redMultiplier;
+      uniform float u_greenMultiplier;
+      uniform float u_blueMultiplier;
+      uniform float u_pulseSpeed;
+      uniform float u_rotationSpeed;
+      uniform float u_colorBalance;
+      uniform float u_time;
+      varying vec2 v_texCoord;
+      
+      // Base warp function.
+      vec2 warpUV(vec2 uv, float zoom) {
+        vec2 offset = uv - 0.5;
+        float r = length(offset);
+        float factor = mix(1.0, zoom, smoothstep(0.0, 1.0, r));
+        return 0.5 + offset * factor;
+      }
+      
+      // Warp function for offset channels with extra distortion.
+      vec2 warpChannel(vec2 uv, float zoom, float extraWarp) {
+        vec2 offset = uv - 0.5;
+        float r = length(offset);
+        float factor = mix(1.0, zoom * (1.0 + extraWarp * smoothstep(0.0, 1.0, r)), smoothstep(0.0, 1.0, r));
+        return 0.5 + offset * factor;
+      }
+      
+      // Rotation function
+      vec2 rotate(vec2 uv, float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        mat2 rotMat = mat2(c, -s, s, c);
+        return (uv - 0.5) * rotMat + 0.5;
+      }
+      
+      void main(){
+        vec2 center = vec2(0.5, 0.5);
+        
+        // Apply time-based effects if enabled
+        float pulseEffect = 1.0;
+        if (u_pulseSpeed > 0.0) {
+          pulseEffect = 1.0 + 0.2 * sin(u_time * u_pulseSpeed);
+        }
+        
+        float rotationAngle = 0.0;
+        if (u_rotationSpeed > 0.0) {
+          // Create oscillating rotation that changes direction
+          // Using sin to oscillate between -1 and 1, multiplied by PI to get half rotations
+          rotationAngle = sin(u_time * u_rotationSpeed * 0.05) * 3.14159;
+        }
+        
+        // Apply rotation if enabled
+        vec2 rotatedCoord = rotate(v_texCoord, rotationAngle);
+        
+        // Base warped UV with pulse effect
+        vec2 baseUV = warpUV(rotatedCoord, u_zoom * pulseEffect);
+        vec4 baseColor = texture2D(u_image, baseUV);
+        
+        // Radial vector from center.
+        vec2 delta = rotatedCoord - center;
+        float r = length(delta);
+        vec2 radial = (r < 0.0001) ? vec2(0.0) : normalize(delta);
+        
+        // Progressive shift amount.
+        float shiftAmount = u_colorShift / u_resolution.x * smoothstep(0.0, 1.0, r);
+        
+        // Apply different multipliers for each channel.
+        vec2 redUV = warpChannel(rotatedCoord + radial * shiftAmount * u_redMultiplier, u_zoom * pulseEffect, 0.7);
+        vec2 greenUV = warpChannel(rotatedCoord + radial * shiftAmount * u_greenMultiplier, u_zoom * pulseEffect, 0.4);
+        vec2 blueUV = warpChannel(rotatedCoord - radial * shiftAmount * u_blueMultiplier, u_zoom * pulseEffect, 1.0);
+        
+        // Sample and tint each channel.
+        vec4 redSample = texture2D(u_image, redUV);
+        redSample = vec4(redSample.r, 0.0, 0.0, 1.0);
+        
+        vec4 greenSample = texture2D(u_image, greenUV);
+        greenSample = vec4(0.0, greenSample.g, 0.0, 1.0);
+        
+        vec4 blueSample = texture2D(u_image, blueUV);
+        blueSample = vec4(0.0, 0.0, blueSample.b, 1.0);
+        
+        // Blend the base with the pure tinted channels.
+        vec4 color = baseColor * (1.0 - u_colorBalance) + (redSample + greenSample + blueSample) * u_colorBalance;
+        
+        // Apply vignette based on distance from center.
+        float dist = distance(v_texCoord, center);
+        float vig = smoothstep(0.6, 1.0, dist);
+        color.rgb *= mix(1.0, 1.0 - u_vignette, vig);
+        
+        gl_FragColor = color;
+      }
+    `;
+    
+    // Glitch shader
+    const glitchShaderSource = `
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_pixelSize;
+      uniform float u_scale;
+      uniform float u_spacing;
+      uniform vec3 u_tintBlackColor;
+      uniform vec3 u_tintWhiteColor;
+      uniform float u_tintAmount;
+      uniform bool u_useGeometricPatterns;
+      uniform float u_glowIntensity;
+      uniform float u_waveSpeed;
+      uniform float u_waveAmplitude;
+      uniform float u_waveSize;
+      varying vec2 v_texCoord;
+
+      // Random function for noise
+      float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+      }
+
+      // Get luminance value
+      float getLuma(vec3 color) {
+        return dot(color, vec3(0.299, 0.587, 0.114));
+      }
+
+      // Gaussian blur function for glow effect
+      vec3 applyGlow(vec2 uv, float luma, float intensity) {
+        vec3 glow = vec3(0.0);
+        float totalWeight = 0.0;
+        
+        // Adjust blur radius based on glow intensity
+        float radius = intensity * 0.02;
+        
+        // Sample in a 5x5 grid for the blur
+        for (int x = -2; x <= 2; x++) {
+          for (int y = -2; y <= 2; y++) {
+            vec2 offset = vec2(float(x), float(y)) * radius;
+            vec2 samplePos = uv + offset;
+            
+            // Calculate Gaussian weight based on distance
+            float weight = exp(-dot(offset, offset) * 4.0);
+            
+            // Sample the texture and calculate luminance
+            vec4 sampleColor = texture2D(u_image, samplePos);
+            float sampleLuma = getLuma(sampleColor.rgb);
+            
+            // Only add bright areas to the glow
+            if (sampleLuma > 0.7) {
+              // Use pure white for the glow instead of the pixel color
+              glow += vec3(1.0) * weight;
+              totalWeight += weight;
+            }
+          }
+        }
+        
+        // Normalize the glow
+        if (totalWeight > 0.0) {
+          glow /= totalWeight;
+        }
+        
+        return glow;
+      }
+
+      // Function to determine which dithering pattern to use based on luma
+      bool shouldDrawPattern(vec2 pos, float luma) {
+        // Normalize position to 0-1 range within the pixel
+        vec2 normPos = fract(pos);
+        
+        if (u_useGeometricPatterns) {
+          if (luma <= 0.2) {
+            // Darkest - empty pattern
+            return false;
+          } else if (luma <= 0.4) {
+            // Dark - 4 dots in corners
+            vec2 dotPos = abs(normPos - 0.5) * 2.0;
+            return dotPos.x > 0.7 && dotPos.y > 0.7;
+          } else if (luma <= 0.6) {
+            // Mid - diagonal line
+            return abs(normPos.x - normPos.y) < 0.2;
+          } else if (luma <= 0.8) {
+            // Light - X pattern
+            return abs(normPos.x - normPos.y) < 0.15 || abs(normPos.x + normPos.y - 1.0) < 0.15;
+          } else {
+            // Lightest - empty pattern
+            return false; 
+          }
+        } else {
+          // Original bar patterns with different sizes
+          vec2 barPos = abs(normPos - 0.5) * 2.0;
+          
+          if (luma <= 0.2) {
+            return false;  // No bar for darkest pixels
+          } else if (luma <= 0.5) {
+            // Small rectangle
+            return barPos.x < 0.9 && barPos.y < 0.12;
+          } else if (luma <= 0.7) {
+            // Large rectangle
+            return barPos.x < 0.9 && barPos.y < 0.25;
+          } else if (luma <= 0.9) {
+            // Largest rectangle
+            return barPos.x < 0.9 && barPos.y < 0.5;
+          } else {
+            return false; // No bar for lightest pixels
+          }
+        }
+      }
+
+      void main() {
+        // Apply wave distortion
+        float waveTime = u_time * u_waveSpeed;
+        vec2 waveOffset = vec2(
+          sin(v_texCoord.y * u_waveSize + waveTime) * u_waveAmplitude,
+          cos(v_texCoord.x * u_waveSize + waveTime) * u_waveAmplitude
+        );
+        vec2 pos = v_texCoord + waveOffset;
+        
+        // Apply scaling from center
+        vec2 center = vec2(0.5, 0.5);
+        pos = (pos - center) / u_scale + center;
+        
+        // Calculate pixelated coordinates for dithering
+        vec2 pixelPos = floor(pos * u_resolution / u_pixelSize) * u_pixelSize / u_resolution;
+        vec2 inPixelPos = fract((pos * u_resolution) / u_pixelSize);
+        
+        // Add spacing between pixels
+        float halfSpacing = u_spacing * 0.5;
+        vec2 spacedPos = vec2(
+          (inPixelPos.x - halfSpacing) / (1.0 - u_spacing),
+          (inPixelPos.y - halfSpacing) / (1.0 - u_spacing)
+        );
+        
+        // Sample the original image
+        vec4 color = texture2D(u_image, pixelPos);
+        float luma = getLuma(color.rgb);
+        
+        // Add noise variation
+        float noise = random(pixelPos + u_time * 0.1) * 0.1;
+        luma += noise;
+        
+        // Determine if we should draw a pattern at this position
+        bool isPattern = shouldDrawPattern(pos * u_resolution / u_pixelSize, luma);
+        
+        // Check if we're in the spacing area
+        bool isSpacing = spacedPos.x < 0.0 || spacedPos.x > 1.0 || 
+                        spacedPos.y < 0.0 || spacedPos.y > 1.0;
+        
+        // Calculate the base color based on pattern and spacing
+        vec3 baseColor;
+        if (isSpacing) {
+          baseColor = u_tintBlackColor;
+        } else if (isPattern) {
+          baseColor = u_tintWhiteColor;
+        } else {
+          baseColor = u_tintBlackColor;
+        }
+        
+        // Apply cross-pixel glow effect
+        vec3 glowColor = applyGlow(pos, luma, u_glowIntensity);
+        baseColor = mix(baseColor, glowColor, u_glowIntensity * 0.5);
+        
+        // Apply tint amount
+        vec3 finalColor = mix(color.rgb, baseColor, u_tintAmount);
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+    
+    // Lens Flare shader
+    const lensFlareShaderSource = `
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_flareIntensity;
+      uniform vec2 u_flarePosition;
+      uniform float u_rainbowIntensity;
+      uniform float u_flareSpeed;
+      uniform float u_glareSize;
+      uniform float u_rayCount;
+      uniform float u_flareScale;
+      uniform float u_positionWiggle;
+      uniform float u_vignetteIntensity;
+      uniform float u_noiseIntensity;
+      uniform float u_zoomEffect;
+      uniform float u_zoomSpeed;
+      varying vec2 v_texCoord;
+      
+      // Random and noise functions
+      float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+      }
+      
+      // Improved noise function (Procedural)
+      float noise(float t) {
+        return random(vec2(t, t * 0.5 + u_time * 0.1));
+      }
+      
+      float noise(vec2 st) {
+        vec2 i = floor(st);
+        vec2 f = fract(st);
+        
+        // Four corners in 2D of a tile
+        float a = random(i);
+        float b = random(i + vec2(1.0, 0.0));
+        float c = random(i + vec2(0.0, 1.0));
+        float d = random(i + vec2(1.0, 1.0));
+        
+        // Smooth interpolation
+        vec2 u = f * f * (3.0 - 2.0 * f); // Cubic Hermite curve
+        
+        // Mix 4 corners
+        return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+      }
+      
+      // Helper function for HSL to RGB conversion
+      float hue2rgb(float p, float q, float t) {
+        if (t < 0.0) t += 1.0;
+        if (t > 1.0) t -= 1.0;
+        if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+        if (t < 1.0/2.0) return q;
+        if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+        return p;
+      }
+      
+      // Color conversion functions
+      vec3 rgb2hsl(vec3 color) {
+        float maxVal = max(max(color.r, color.g), color.b);
+        float minVal = min(min(color.r, color.g), color.b);
+        float delta = maxVal - minVal;
+        
+        vec3 hsl = vec3(0.0, 0.0, (maxVal + minVal) / 2.0);
+        
+        if (delta > 0.0) {
+          hsl.y = (hsl.z < 0.5) ? (delta / (maxVal + minVal)) : (delta / (2.0 - maxVal - minVal));
+          
+          if (maxVal == color.r) {
+            hsl.x = (color.g - color.b) / delta + (color.g < color.b ? 6.0 : 0.0);
+          } else if (maxVal == color.g) {
+            hsl.x = (color.b - color.r) / delta + 2.0;
+          } else {
+            hsl.x = (color.r - color.g) / delta + 4.0;
+          }
+          
+          hsl.x /= 6.0;
+        }
+        
+        return hsl;
+      }
+      
+      vec3 hsl2rgb(vec3 hsl) {
+        vec3 rgb = vec3(0.0);
+        
+        if (hsl.y == 0.0) {
+          rgb = vec3(hsl.z);
+        } else {
+          float q = hsl.z < 0.5 ? hsl.z * (1.0 + hsl.y) : hsl.z + hsl.y - hsl.z * hsl.y;
+          float p = 2.0 * hsl.z - q;
+          
+          rgb.r = hue2rgb(p, q, hsl.x + 1.0/3.0);
+          rgb.g = hue2rgb(p, q, hsl.x);
+          rgb.b = hue2rgb(p, q, hsl.x - 1.0/3.0);
+        }
+        
+        return rgb;
+      }
+      
+      // Function to find the most saturated and bright color in the image
+      vec3 findDominantColor(sampler2D image, vec2 uv, vec2 resolution) {
+        vec3 dominantColor = vec3(0.0);
+        float maxSaturation = 0.0;
+        float maxBrightness = 0.0;
+        
+        // Sample a grid of points in the image
+        const int gridSize = 8;
+        float stepSize = 1.0 / float(gridSize);
+        
+        for (int x = 0; x < gridSize; x++) {
+          for (int y = 0; y < gridSize; y++) {
+            vec2 sampleUV = vec2(float(x), float(y)) * stepSize;
+            vec3 color = texture2D(image, sampleUV).rgb;
+            
+            // Convert to HSL to analyze saturation and brightness
+            vec3 hsl = rgb2hsl(color);
+            
+            // Check if this color is more saturated and bright than our current dominant color
+            if (hsl.y > maxSaturation && hsl.z > 0.5) {
+              maxSaturation = hsl.y;
+              maxBrightness = hsl.z;
+              dominantColor = color;
+            }
+          }
+        }
+        
+        return dominantColor;
+      }
+      
+      // Add color
+      vec3 getRayColor(float angle, float intensity) {
+        // Normalize angle to 0-1 range
+        float normAngle = mod(angle / (2.0 * 3.14159), 1.0);
+        
+        // Add noise variation
+        float noiseVal = noise(vec2(normAngle * 10.0 + u_time * 0.3, u_time * 0.5 + normAngle * 5.0));
+        
+        // Get the dominant color from the image
+        vec3 dominantColor = findDominantColor(u_image, v_texCoord, u_resolution);
+        
+        // Convert dominant color to HSL
+        vec3 dominantHSL = rgb2hsl(dominantColor);
+        
+        // Calculate complementary hue with a slight offset
+        // Add a small random variation between -0.1 and 0.1 to the complementary hue
+        float hueOffset = noise(vec2(normAngle * 20.0, u_time * 0.4)) * 0.2 - 0.1;
+        float complementaryHue = mod(dominantHSL.x + 0.5 + hueOffset, 1.0);
+        
+        // Create base color using complementary hue
+        vec3 baseColor = hsl2rgb(vec3(complementaryHue, 1.0, 0.5));
+        
+        // Add variation to saturation and lightness based on noise
+        float saturationVariation = noise(vec2(normAngle * 15.0, u_time * 0.6)) * 0.3;
+        float lightnessVariation = noise(vec2(normAngle * 20.0, u_time * 0.7)) * 0.2;
+        
+        // Convert to HSL for manipulation
+        vec3 colorHSL = rgb2hsl(baseColor);
+        colorHSL.y = clamp(colorHSL.y + saturationVariation, 0.5, 1.0); // Keep saturation high
+        colorHSL.z = clamp(colorHSL.z + lightnessVariation, 0.4, 0.8); // Keep brightness moderate
+        
+        // Convert back to RGB
+        vec3 color = hsl2rgb(colorHSL);
+        
+        // Add subtle random variation to make it more dynamic
+        color += vec3(
+          noise(vec2(normAngle * 20.0, u_time * 0.7)) * 0.1,
+          noise(vec2(normAngle * 15.0, u_time * 0.6)) * 0.1,
+          noise(vec2(normAngle * 25.0, u_time * 0.8)) * 0.1
+        );
+        
+        return clamp(color, 0.0, 1.0);
+      }
+      
+      // Function to apply color filter while maintaining luma
+      vec3 applyColorFilter(vec3 color, vec3 targetColor) {
+        // Convert both colors to HSL
+        vec3 colorHSL = rgb2hsl(color);
+        vec3 targetHSL = rgb2hsl(targetColor);
+        
+        // Keep original luma (brightness) but adopt hue and saturation from target
+        vec3 filteredHSL = vec3(targetHSL.x, targetHSL.y, colorHSL.z);
+        
+        // Convert back to RGB
+        return hsl2rgb(filteredHSL);
+      }
+
+      // Apply vignette effect with true Gaussian blur (no darkening)
+      vec3 applyVignette(vec3 color, vec2 uv, float intensity) {
+        float dist = distance(uv, vec2(0.5, 0.5));
+        
+        // Calculate blur amount based on distance from center - increased blur effect
+        float blurAmount = smoothstep(0.2, 0.6, dist * intensity * 2.2);
+        
+        // Only apply blur in the vignette area to save performance
+        if (blurAmount > 0.01) {
+          // Implement a true Gaussian blur by sampling neighboring pixels
+          vec3 blurredColor = vec3(0.0);
+          float totalWeight = 0.0;
+          
+          // Increased blur radius based on distance from center
+          float radius = 0.03 * blurAmount;
+          
+          // Sample in a 7x7 grid around the current pixel for stronger blur
+          for (int x = -3; x <= 3; x++) {
+            for (int y = -3; y <= 3; y++) {
+              vec2 offset = vec2(float(x), float(y)) * radius;
+              
+              // Gaussian weight based on distance from center sample
+              float weight = exp(-dot(offset, offset) * 3.0);
+              
+              // Sample the texture at the offset position
+              vec3 sampleColor = texture2D(u_image, uv + offset).rgb;
+              
+              // Accumulate weighted sample
+              blurredColor += sampleColor * weight;
+              totalWeight += weight;
+            }
+          }
+          
+          // Normalize by total weight
+          blurredColor /= totalWeight;
+          
+          // Blend between original and blurred color based on distance
+          // Increased blend factor for stronger blur effect
+          color = mix(color, blurredColor, blurAmount * 0.95);
+        }
+        
+        // Brighten the image based on distance from center
+        float brightenAmount = smoothstep(0.6, 0.2, dist * intensity);
+        color = mix(color, color * 1.0, brightenAmount);
+        
+        return color;
+      }
+      
+      // Apply film grain noise that looks more like traditional film grain
+      vec3 applyNoise(vec3 color, vec2 uv, float time, float intensity) {
+        // Constants for film grain simulation
+        const float PI = 3.14159265359;
+        
+        // Calculate luminance - film grain is more visible in darker areas
+        float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+        float grainMask = 5.0 - luminance * 0.5; // Moderate effect in shadows
+        
+        // Create truly random noise without any large-scale patterns
+        // Use high-frequency noise with prime number multipliers to avoid patterns
+        float n = 0.0;
+        
+        // Create multiple independent noise samples at different frequencies
+        // Using prime numbers and irrational offsets to avoid creating patterns
+        // Frequencies reduced by ~33% to increase grain size by 50%
+        n += random(uv * 569.0 + vec2(time * 0.13, 0.0)) * 0.25;         // Was 853.0
+        n += random(uv * 277.0 + vec2(0.0, time * 0.17)) * 0.25;         // Was 419.0
+        n += random(uv * 661.0 + vec2(time * 0.19, time * 0.23)) * 0.25; // Was 997.0
+        n += random(uv * 421.0 + vec2(time * 0.11, time * 0.13)) * 0.25; // Was 631.0
+        
+        // Add pixel-level variation to break up any potential patterns
+        // Using golden ratio (1.61803) and other irrational numbers as offsets
+        // Reduced frequency for larger grain
+        vec2 pixelNoise = vec2(
+            fract(sin(uv.x * 29172.3635 + time * 0.11) * 12345.6789),
+            fract(sin(uv.y * 48771.5262 + time * 0.13) * 45678.9012)
+        );
+        n = mix(n, random(pixelNoise * 823.0 + time * 0.17), 0.3); // Was 1234.5
+        
+        // Scale the noise to the desired intensity
+        float grainIntensity = intensity * 0.15;
+        float grain = (n * 2.0 - 1.0) * grainIntensity * grainMask;
+        
+        // Apply the grain using multiply blend mode for darker grain effect
+        // Multiply: base * blend
+        vec3 grainColor = vec3(1.0 + grain);
+        
+        // Ensure we don't get values above 1.0 which would lighten the image
+        grainColor = clamp(grainColor, 0.0, 1.0);
+        
+        // Apply multiply blend mode
+        return color * grainColor;
+      }
+      
+      // Enhanced lens flare function with vibrant RGB colors and varied rays
+      vec3 lensFlare(vec2 uv, vec2 pos, float intensity, float scale) {
+        // Apply scaling to the UV coordinates relative to the flare position
+        uv = (uv - pos) / scale + pos;
+        
+        // Normalize coordinates to center
+        vec2 main = uv - pos;
+        vec2 uvd = uv * (length(uv));
+        
+        float dist = length(main);
+        float ang = atan(main.y, main.x);
+        
+        // Time-based animation for noise patterns with multiple frequencies
+        float timeNoise = u_time * u_flareSpeed;
+        
+        // Add some noise variation based on angle and distance with animation
+        // Use multiple noise frequencies for more organic variation
+        float n = noise(vec2(ang * 16.0 + timeNoise * 0.1, dist * 32.0 + timeNoise * 0.2)) * 0.5 +
+                  noise(vec2(ang * 8.0 + timeNoise * 0.3, dist * 16.0 + timeNoise * 0.4)) * 0.3 +
+                  noise(vec2(ang * 32.0 + timeNoise * 0.5, dist * 64.0 + timeNoise * 0.6)) * 0.2;
+        
+        // Main glow with noise variation
+        float f0 = 1.0 / (length(uv - pos) * 16.0 / u_glareSize + 1.0);
+        f0 = f0 + f0 * (sin(noise(vec2(sin(ang * 2.0) * 4.0 + timeNoise * 0.3, cos(ang * 3.0) * 5.0 + timeNoise * 0.4)) * 16.0) * 0.1 + dist * 0.1 + 0.8);
+        
+        // Various lens artifacts with RGB color separation
+        float f1 = max(0.01 - pow(length(uv + 1.2 * pos), 1.9), 0.0) * 7.0;
+        
+        float f2 = max(1.0 / (1.0 + 32.0 * pow(length(uvd + 0.8 * pos), 2.0)), 0.0) * 0.25;
+        float f22 = max(1.0 / (1.0 + 32.0 * pow(length(uvd + 0.85 * pos), 2.0)), 0.0) * 0.23;
+        float f23 = max(1.0 / (1.0 + 32.0 * pow(length(uvd + 0.9 * pos), 2.0)), 0.0) * 0.21;
+        
+        vec2 uvx = mix(uv, uvd, -0.5);
+        
+        float f4 = max(0.01 - pow(length(uvx + 0.4 * pos), 2.4), 0.0) * 6.0;
+        float f42 = max(0.01 - pow(length(uvx + 0.45 * pos), 2.4), 0.0) * 5.0;
+        float f43 = max(0.01 - pow(length(uvx + 0.5 * pos), 2.4), 0.0) * 3.0;
+        
+        uvx = mix(uv, uvd, -0.4);
+        
+        float f5 = max(0.01 - pow(length(uvx + 0.2 * pos), 5.5), 0.0) * 2.0;
+        float f52 = max(0.01 - pow(length(uvx + 0.4 * pos), 5.5), 0.0) * 2.0;
+        float f53 = max(0.01 - pow(length(uvx + 0.6 * pos), 5.5), 0.0) * 2.0;
+        
+        uvx = mix(uv, uvd, -0.5);
+        
+        float f6 = max(0.01 - pow(length(uvx - 0.3 * pos), 1.6), 0.0) * 6.0;
+        float f62 = max(0.01 - pow(length(uvx - 0.325 * pos), 1.6), 0.0) * 3.0;
+        float f63 = max(0.01 - pow(length(uvx - 0.35 * pos), 1.6), 0.0) * 5.0;
+        
+        // Create pure RGB color artifacts
+        vec3 c = vec3(0.0);
+        
+        // Red channel artifacts
+        c.r += f2 * 1.3 + f4 * 1.2 + f6 * 1.4;
+        
+        // Green channel artifacts
+        c.g += f22 * 1.3 + f42 * 1.2 + f62 * 1.4;
+        
+        // Blue channel artifacts
+        c.b += f23 * 1.3 + f43 * 1.2 + f63 * 1.4;
+        
+        // Add main glow with slight color tint
+        c += vec3(f0 * 0.9, f0 * 1.0, f0 * 1.1);
+        
+        // Add animated rainbow rays with more variation
+        if (u_rainbowIntensity > 0.0) {
+          float rayPhase = u_time * u_flareSpeed;
+          float rayCount = u_rayCount;
+          
+          // Create evenly distributed rays
+          for (float i = 0.0; i < 48.0; i++) {
+            if (i >= rayCount) break;
+            
+            // Evenly distribute ray angles with slight random variation
+            float rayAngle = 3.14159 * 2.0 * (i / rayCount);
+            
+            // Add completely random time-based variation to each ray angle
+            float angleNoise = noise(vec2(i * 0.5, rayPhase * 0.2 + i * 0.3)) * 0.1;
+            rayAngle += angleNoise;
+            
+            // Calculate angle difference for this ray
+            float angleDiff = mod(abs(ang - rayAngle), 3.14159 * 2.0);
+            angleDiff = min(angleDiff, 3.14159 * 2.0 - angleDiff);
+            
+            // Animated ray properties based on noise with multiple frequencies
+            float rayTimeOffset = i * 0.1;
+            
+            // Animated ray length - varies over time with multiple noise frequencies
+            float rayLength = 0.3 + 
+                             noise(vec2(i * 0.3, rayPhase * 0.2 + rayTimeOffset)) * 0.3 +
+                             noise(vec2(i * 0.7, rayPhase * 0.4 + rayTimeOffset + 10.0)) * 0.2 +
+                             noise(vec2(i * 1.1, rayPhase * 0.6 + rayTimeOffset + 20.0)) * 0.2;
+            
+            // Animated ray width - varies over time with multiple noise frequencies
+            float rayWidth = 0.1 + 
+                            noise(vec2(i * 0.7, rayPhase * 0.3 + rayTimeOffset)) * 0.05 +
+                            noise(vec2(i * 1.3, rayPhase * 0.5 + rayTimeOffset + 15.0)) * 0.05;
+            
+            // Animated ray opacity - complex pattern with multiple frequencies
+            float rayOpacity = 0.3 + 
+                              noise(vec2(i * 0.4, rayPhase * 0.5 + i * 0.2)) * 0.3 +
+                              sin(rayPhase * 0.7 + i * 0.6) * 0.2 +
+                              cos(rayPhase * 0.3 + i * 0.9) * 0.2;
+            
+            // Create thinner rays with more variation
+            float ray = smoothstep(rayWidth, 0.0, angleDiff) * 
+                        smoothstep(rayLength, rayLength * 0.5, dist) * 
+                        rayOpacity * (1.0 + n * 0.3);
+            
+            // Get rainbow color with complex animation
+            vec3 rayColor = getRayColor(rayAngle, rayPhase * 0.05 + i * 0.1);
+            
+            // Add the ray with rainbow coloring
+            c += rayColor * ray * u_rainbowIntensity * 0.7;
+            
+            // Add secondary smaller rays between main rays for more detail
+            if (i < rayCount - 1.0) {
+              // Random offset between 0.3 and 0.7 of the way to the next ray
+              float subRayOffset = 0.5 + noise(vec2(i * 0.9, rayPhase * 0.15)) * 0.4 - 0.2;
+              float subRayAngle = rayAngle + 3.14159 * 2.0 * (subRayOffset / rayCount);
+              
+              // Add random variation to sub-ray angle
+              subRayAngle += noise(vec2(i * 1.2, rayPhase * 0.25 + i * 0.4)) * 0.08;
+              
+              float subAngleDiff = mod(abs(ang - subRayAngle), 3.14159 * 2.0);
+              subAngleDiff = min(subAngleDiff, 3.14159 * 2.0 - subAngleDiff);
+              
+              // Animated properties for secondary rays with complex patterns
+              float subRayTimeOffset = i * 0.15 + 0.5;
+              
+              // Complex animation for sub-ray length
+              float subRayLength = rayLength * (0.3 + 
+                                  noise(vec2(i * 0.5, rayPhase * 0.25 + subRayTimeOffset)) * 0.2 +
+                                  noise(vec2(i * 0.9, rayPhase * 0.35 + subRayTimeOffset + 5.0)) * 0.2);
+              
+              // Complex animation for sub-ray width
+              float subRayWidth = rayWidth * (0.5 +
+                                 noise(vec2(i * 0.8, rayPhase * 0.3 + subRayTimeOffset + 10.0)) * 0.3);
+              
+              // Complex animation for sub-ray opacity
+              float subRayOpacity = rayOpacity * (0.3 + 
+                                   noise(vec2(i * 0.6, rayPhase * 0.4 + subRayTimeOffset)) * 0.2 +
+                                   sin(rayPhase * 0.9 + i * 0.7) * 0.2);
+              
+              float subRay = smoothstep(subRayWidth, 0.0, subAngleDiff) * 
+                             smoothstep(subRayLength, subRayLength * 0.3, dist) * 
+                             subRayOpacity * (1.0 + n * 0.2);
+              
+              // Different color for sub-rays with complex animation
+              vec3 subRayColor = getRayColor(subRayAngle, rayPhase * 0.07 + i * 0.12 + dist * 0.5);
+              
+              c += subRayColor * subRay * u_rainbowIntensity * 0.4;
+            }
+          }
+        }
+        
+        // Apply overall intensity
+        return c * intensity * 1.5;
+      }
+      
+      void main() {
+        // Get the base image color with zoom effect
+        vec2 center = vec2(0.5, 0.5);
+        
+        // Create smooth back-and-forth zoom motion
+        float cycleTime = u_time * u_zoomSpeed;
+        float t = abs(mod(cycleTime, 2.0) - 1.0); // Smooth ping-pong between 0 and 1
+        float zoomFactor = 1.0 + u_zoomEffect * t;
+        vec2 zoomedUV = (v_texCoord - center) / zoomFactor + center;
+        vec4 baseColor = texture2D(u_image, zoomedUV);
+        
+        // Find the dominant color in the image
+        vec3 dominantColor = findDominantColor(u_image, v_texCoord, u_resolution);
+        
+        // Apply color filter to the base image while maintaining luma
+        vec3 filteredColor = applyColorFilter(baseColor.rgb, dominantColor);
+        
+        // Apply lens flare effect
+        vec2 flarePos = u_flarePosition;
+        
+        // Add position wiggle
+        float wiggleTime = u_time * u_flareSpeed;
+        flarePos.x += sin(wiggleTime * 2.0) * u_positionWiggle;
+        flarePos.y += cos(wiggleTime * 1.5) * u_positionWiggle;
+        
+        // Calculate flare effect
+        vec3 flareColor = lensFlare(v_texCoord, flarePos, u_flareIntensity, u_flareScale);
+        
+        // Mix the filtered color with the flare effect
+        vec3 finalColor = mix(filteredColor, flareColor, u_flareIntensity * 0.5);
+        
+        // Apply vignette
+        finalColor = applyVignette(finalColor, v_texCoord, u_vignetteIntensity);
+        
+        // Apply noise
+        finalColor = applyNoise(finalColor, v_texCoord, u_time, u_noiseIntensity);
+        
+        // Output the final color
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+    
+    // Glitch 2 shader with dithering patterns
+    const glitch2ShaderSource = `
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_pixelSize;
+      uniform float u_glitchIntensity;
+      uniform float u_scanlineSpeed;
+      uniform float u_noiseAmount;
+      varying vec2 v_texCoord;
+
+      // Random function for noise
+      float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+      }
+
+      // Get luminance value
+      float getLuma(vec3 color) {
+        return dot(color, vec3(0.299, 0.587, 0.114));
+      }
+
+      // Function to determine which dithering pattern to use based on luma
+      bool shouldDrawPixel(vec2 pos, float luma) {
+        // Normalize position to 0-1 range within the pixel
+        vec2 normPos = fract(pos);
+        
+        if (luma <= 0.2) {
+          // Darkest - empty pattern
+          return false;
+        } else if (luma <= 0.4) {
+          // Dark - 4 dots in corners
+          vec2 dotPos = abs(normPos - 0.5) * 2.0;
+          return dotPos.x > 0.7 && dotPos.y > 0.7;
+        } else if (luma <= 0.6) {
+          // Mid - diagonal line
+          return abs(normPos.x - normPos.y) < 0.2;
+        } else if (luma <= 0.8) {
+          // Light - X pattern
+          return abs(normPos.x - normPos.y) < 0.15 || abs(normPos.x + normPos.y - 1.0) < 0.15;
+        } else {
+          // Lightest - empty pattern
+          return false;
+        }
+      }
+
+      void main() {
+        // Add some time-based vertical distortion
+        float distortion = sin(v_texCoord.y * 40.0 + u_time * u_scanlineSpeed) * 0.001 * u_glitchIntensity;
+        vec2 pos = v_texCoord + vec2(distortion, 0.0);
+        
+        // Calculate pixelated coordinates
+        vec2 pixelPos = floor(pos * u_resolution / u_pixelSize) * u_pixelSize / u_resolution;
+        vec2 pixelCenter = pixelPos + (u_pixelSize / u_resolution) * 0.5;
+        
+        // Sample original color
+        vec4 color = texture2D(u_image, pixelCenter);
+        float luma = getLuma(color.rgb);
+        
+        // Add some noise variation
+        float noise = random(pixelPos + u_time * 0.1) * u_noiseAmount;
+        luma += noise;
+        
+        // Determine if we should draw this pixel based on the dithering pattern
+        bool isPattern = shouldDrawPixel(pos * u_resolution / u_pixelSize, luma);
+        
+        // Create glitch bands
+        float glitchBand = step(0.98, random(vec2(floor(pos.y * 50.0), u_time))) * u_glitchIntensity;
+        vec2 glitchPos = pos + vec2(glitchBand * 0.1, 0.0);
+        vec4 glitchColor = texture2D(u_image, glitchPos);
+        
+        // Mix between pattern color and glitch color
+        vec4 finalColor;
+        if (isPattern) {
+          finalColor = vec4(1.0);
+        } else {
+          finalColor = vec4(0.0, 0.0, 0.0, 1.0);
+        }
+        
+        // Apply the glitch effect
+        finalColor = mix(finalColor, glitchColor, glitchBand);
+        
+        gl_FragColor = finalColor;
+      }
+    `;
+    
+    // Classic Glass shader
+    const classicGlassShaderSource = `
+      precision mediump float;
+      varying vec2 v_texCoord;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_segments;
+      uniform float u_rotation;
+      uniform float u_motionValue;
+      uniform float u_imageAspect;
+      uniform float u_overlayOpacity;
+      uniform vec3 u_overlayColorWhite;
+      uniform float u_effectCoverage;
+
+      void main() {
+        float canvasAspect = u_resolution.x / u_resolution.y;
+        float numSlices = u_segments;
+        float rotationRadians = u_rotation * (3.14159265 / 180.0);
+
+        // Adjust the UV coordinates for aspect ratio
+        vec2 scaledUV = v_texCoord;
+        if (u_imageAspect > canvasAspect) {
+          float scale = canvasAspect / u_imageAspect;
+          scaledUV.x = (v_texCoord.x - 0.5) * scale + 0.5;
+        } else {
+          float scale = u_imageAspect / canvasAspect;
+          scaledUV.y = (v_texCoord.y - 0.5) * scale + 0.5;
+        }
+
+        // Rotate the texture to align it with the warping axis
+        vec2 rotatedUV = vec2(
+          cos(rotationRadians) * (scaledUV.x - 0.5) - sin(rotationRadians) * (scaledUV.y - 0.5) + 0.5,
+          sin(rotationRadians) * (scaledUV.x - 0.5) + cos(rotationRadians) * (scaledUV.y - 0.5) + 0.5
+        );
+
+        // Apply the warping effect along the aligned axis (now horizontal after rotation)
+        float sliceProgress = fract(rotatedUV.x * numSlices + u_motionValue);
+        float amplitude = 0.015;
+        
+        // Use step function for hard cutoff instead of smoothstep
+        float coverageFactor = step(rotatedUV.x, u_effectCoverage);
+        rotatedUV.x += amplitude * sin(sliceProgress * 3.14159265 * 2.0) * (1.0 - 0.5 * abs(sliceProgress - 0.5)) * coverageFactor;
+
+        // Rotate the UVs back to the original orientation
+        vec2 finalUV = vec2(
+          cos(-rotationRadians) * (rotatedUV.x - 0.5) - sin(-rotationRadians) * (rotatedUV.y - 0.5) + 0.5,
+          sin(-rotationRadians) * (rotatedUV.x - 0.5) + cos(-rotationRadians) * (rotatedUV.y - 0.5) + 0.5
+        );
+
+        // Tile texture on edges using the final UVs
+        vec2 tileIndex = floor(finalUV);
+        vec2 oddTile = mod(tileIndex, 2.0);
+        vec2 mirroredUV = mix(fract(finalUV), 1.0 - fract(finalUV), oddTile);
+        vec4 color = texture2D(u_image, mirroredUV);
+
+        if (u_overlayOpacity > 0.0) {
+          // Apply overlays with hard cutoff
+          float blackOverlayAlpha = 0.05 * (1.0 - abs(sin(sliceProgress * 3.14159265 * 0.5 + 1.57))) * (u_overlayOpacity / 100.0) * coverageFactor;
+          color.rgb *= (1.0 - blackOverlayAlpha);
+
+          float whiteOverlayAlpha = 0.15 * (1.0 - abs(sin(sliceProgress * 3.14159265 * 0.7 - 0.7))) * (u_overlayOpacity / 100.0) * coverageFactor;
+          color.rgb = mix(color.rgb, u_overlayColorWhite, whiteOverlayAlpha);
+        }
+
+        gl_FragColor = color;
+      }
+    `;
+    // Frosted Glass shader
+    const frostedGlassShaderSource = `
+      precision mediump float;
+      varying vec2 v_texCoord;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_blurAmount;
+      uniform float u_distortionAmount;
+      uniform float u_noiseScale;
+      uniform float u_effectCoverage;
+      uniform float u_animationSpeed;
+
+      // Improved Perlin noise functions
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+             -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy));
+        vec2 x0 = v -   i + dot(i, C.xx);
+        vec2 i1;
+        i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289(i);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0))
+          + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy),
+          dot(x12.zw, x12.zw)), 0.0);
+        m = m*m;
+        m = m*m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      // Gaussian blur function
+      vec4 blur(sampler2D tex, vec2 uv, float blurSize) {
+        vec4 color = vec4(0.0);
+        float totalWeight = 0.0;
+        
+        for(float i = -1.0; i <= 1.0; i += 1.0) {
+          for(float j = -1.0; j <= 1.0; j += 1.0) {
+            vec2 offset = vec2(i, j) * blurSize;
+            float weight = exp(-(i*i + j*j) / 2.0);
+            color += texture2D(tex, uv + offset) * weight;
+            totalWeight += weight;
+          }
+        }
+        
+        return color / totalWeight;
+      }
+
+      void main() {
+        // Calculate coverage factor
+        float coverageFactor = step(v_texCoord.x, u_effectCoverage);
+        
+        // If outside coverage area, just output original color
+        if (coverageFactor < 0.5) {
+          gl_FragColor = texture2D(u_image, v_texCoord);
+          return;
+        }
+        
+        // Calculate animated noise offset using animation speed
+        vec2 noiseOffset = vec2(u_time * u_animationSpeed * 0.1, u_time * u_animationSpeed * 0.2);
+        
+        // Generate noise for distortion using improved Perlin noise
+        vec2 noiseCoord = v_texCoord * u_noiseScale + noiseOffset;
+        float noiseValue = snoise(noiseCoord) * 0.5 + 0.5; // Normalize to 0-1 range
+        
+        // Create chromatic aberration offsets
+        float redOffset = 1.0 + u_distortionAmount * 0.5;
+        float blueOffset = 1.0 - u_distortionAmount * 0.5;
+        
+        // Apply distortion with chromatic aberration
+        vec2 distortedUV = v_texCoord + vec2(
+          cos(noiseValue * 6.28318) * u_distortionAmount,
+          sin(noiseValue * 6.28318) * u_distortionAmount
+        );
+        
+        // Sample and blur each color channel separately
+        float blurSize = u_blurAmount * 0.01;
+        vec4 redColor = blur(u_image, distortedUV * vec2(redOffset, 1.0), blurSize);
+        vec4 greenColor = blur(u_image, distortedUV, blurSize);
+        vec4 blueColor = blur(u_image, distortedUV * vec2(blueOffset, 1.0), blurSize);
+        
+        // Combine colors
+        gl_FragColor = vec4(redColor.r, greenColor.g, blueColor.b, 1.0);
+      }
+    `;
+    // ... existing code ...
+    
+    function compileShader(gl, shaderSource, shaderType) {
+      const shader = gl.createShader(shaderType);
+      gl.shaderSource(shader, shaderSource);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Shader compile failed: " + gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+    
+    function createProgram(gl, vertexShader, fragmentShader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error("Program link failed: " + gl.getProgramInfoLog(program));
+        return null;
+      }
+      return program;
+    }
+    
+    // Compile the vertex shader once
+    const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
+    
+    // Compile all fragment shaders
+    const psychedelicFragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
+    const glitchFragmentShader = compileShader(gl, glitchShaderSource, gl.FRAGMENT_SHADER);
+    const lensFlareFragmentShader = compileShader(gl, lensFlareShaderSource, gl.FRAGMENT_SHADER);
+    const classicGlassFragmentShader = compileShader(gl, classicGlassShaderSource, gl.FRAGMENT_SHADER);
+    const frostedGlassFragmentShader = compileShader(gl, frostedGlassShaderSource, gl.FRAGMENT_SHADER);
+    // Create shader programs
+    const psychedelicProgram = createProgram(gl, vertexShader, psychedelicFragmentShader);
+    const glitchProgram = createProgram(gl, vertexShader, glitchFragmentShader);
+    const lensFlareProgram = createProgram(gl, vertexShader, lensFlareFragmentShader);
+    const classicGlassProgram = createProgram(gl, vertexShader, classicGlassFragmentShader);
+    const frostedGlassProgram = createProgram(gl, vertexShader, frostedGlassFragmentShader);
+    
+    // Create Glitch 2 program
+    const glitch2FragmentShader = compileShader(gl, glitch2ShaderSource, gl.FRAGMENT_SHADER);
+    const glitch2Program = createProgram(gl, vertexShader, glitch2FragmentShader);
+    
+    // Current active program
+    let activeProgram = psychedelicProgram;
+    
+    // Locations for psychedelic shader
+    const psychedelicLocations = {
+      a_position: gl.getAttribLocation(psychedelicProgram, "a_position"),
+      a_texCoord: gl.getAttribLocation(psychedelicProgram, "a_texCoord"),
+      u_resolution: gl.getUniformLocation(psychedelicProgram, "u_resolution"),
+      u_zoom: gl.getUniformLocation(psychedelicProgram, "u_zoom"),
+      u_vignette: gl.getUniformLocation(psychedelicProgram, "u_vignette"),
+      u_colorShift: gl.getUniformLocation(psychedelicProgram, "u_colorShift"),
+      u_redMultiplier: gl.getUniformLocation(psychedelicProgram, "u_redMultiplier"),
+      u_greenMultiplier: gl.getUniformLocation(psychedelicProgram, "u_greenMultiplier"),
+      u_blueMultiplier: gl.getUniformLocation(psychedelicProgram, "u_blueMultiplier"),
+      u_pulseSpeed: gl.getUniformLocation(psychedelicProgram, "u_pulseSpeed"),
+      u_rotationSpeed: gl.getUniformLocation(psychedelicProgram, "u_rotationSpeed"),
+      u_colorBalance: gl.getUniformLocation(psychedelicProgram, "u_colorBalance"),
+      u_time: gl.getUniformLocation(psychedelicProgram, "u_time")
+    };
+    
+    // Locations for glitch shader
+    const glitchLocations = {
+      a_position: gl.getAttribLocation(glitchProgram, "a_position"),
+      a_texCoord: gl.getAttribLocation(glitchProgram, "a_texCoord"),
+      u_resolution: gl.getUniformLocation(glitchProgram, "u_resolution"),
+      u_time: gl.getUniformLocation(glitchProgram, "u_time"),
+      u_pixelSize: gl.getUniformLocation(glitchProgram, "u_pixelSize"),
+      u_scale: gl.getUniformLocation(glitchProgram, "u_scale"),
+      u_spacing: gl.getUniformLocation(glitchProgram, "u_spacing"),
+      u_tintBlackColor: gl.getUniformLocation(glitchProgram, "u_tintBlackColor"),
+      u_tintWhiteColor: gl.getUniformLocation(glitchProgram, "u_tintWhiteColor"),
+      u_tintAmount: gl.getUniformLocation(glitchProgram, "u_tintAmount"),
+      u_useGeometricPatterns: gl.getUniformLocation(glitchProgram, "u_useGeometricPatterns"),
+      u_glowIntensity: gl.getUniformLocation(glitchProgram, "u_glowIntensity"),
+      u_waveSpeed: gl.getUniformLocation(glitchProgram, "u_waveSpeed"),
+      u_waveAmplitude: gl.getUniformLocation(glitchProgram, "u_waveAmplitude"),
+      u_waveSize: gl.getUniformLocation(glitchProgram, "u_waveSize")
+    };
+    
+    // Locations for lens flare shader
+    const lensFlareLocations = {
+      a_position: gl.getAttribLocation(lensFlareProgram, "a_position"),
+      a_texCoord: gl.getAttribLocation(lensFlareProgram, "a_texCoord"),
+      u_resolution: gl.getUniformLocation(lensFlareProgram, "u_resolution"),
+      u_time: gl.getUniformLocation(lensFlareProgram, "u_time"),
+      u_flareIntensity: gl.getUniformLocation(lensFlareProgram, "u_flareIntensity"),
+      u_flarePosition: gl.getUniformLocation(lensFlareProgram, "u_flarePosition"),
+      u_rainbowIntensity: gl.getUniformLocation(lensFlareProgram, "u_rainbowIntensity"),
+      u_flareSpeed: gl.getUniformLocation(lensFlareProgram, "u_flareSpeed"),
+      u_glareSize: gl.getUniformLocation(lensFlareProgram, "u_glareSize"),
+      u_rayCount: gl.getUniformLocation(lensFlareProgram, "u_rayCount"),
+      u_flareScale: gl.getUniformLocation(lensFlareProgram, "u_flareScale"),
+      u_positionWiggle: gl.getUniformLocation(lensFlareProgram, "u_positionWiggle"),
+      u_vignetteIntensity: gl.getUniformLocation(lensFlareProgram, "u_vignetteIntensity"),
+      u_noiseIntensity: gl.getUniformLocation(lensFlareProgram, "u_noiseIntensity"),
+      u_zoomEffect: gl.getUniformLocation(lensFlareProgram, "u_zoomEffect"),
+      u_zoomSpeed: gl.getUniformLocation(lensFlareProgram, "u_zoomSpeed")
+    };
+    
+    // Locations for Glitch 2 shader
+    const glitch2Locations = {
+      a_position: gl.getAttribLocation(glitch2Program, "a_position"),
+      a_texCoord: gl.getAttribLocation(glitch2Program, "a_texCoord"),
+      u_resolution: gl.getUniformLocation(glitch2Program, "u_resolution"),
+      u_time: gl.getUniformLocation(glitch2Program, "u_time"),
+      u_pixelSize: gl.getUniformLocation(glitch2Program, "u_pixelSize"),
+      u_glitchIntensity: gl.getUniformLocation(glitch2Program, "u_glitchIntensity"),
+      u_scanlineSpeed: gl.getUniformLocation(glitch2Program, "u_scanlineSpeed"),
+      u_noiseAmount: gl.getUniformLocation(glitch2Program, "u_noiseAmount")
+    };
+
+    // Locations for classic glass shader
+    const classicGlassLocations = {
+      a_position: gl.getAttribLocation(classicGlassProgram, "a_position"),
+      a_texCoord: gl.getAttribLocation(classicGlassProgram, "a_texCoord"),
+      u_resolution: gl.getUniformLocation(classicGlassProgram, "u_resolution"),
+      u_time: gl.getUniformLocation(classicGlassProgram, "u_time"),
+      u_segments: gl.getUniformLocation(classicGlassProgram, "u_segments"),
+      u_rotation: gl.getUniformLocation(classicGlassProgram, "u_rotation"),
+      u_motionValue: gl.getUniformLocation(classicGlassProgram, "u_motionValue"),
+      u_imageAspect: gl.getUniformLocation(classicGlassProgram, "u_imageAspect"),
+      u_overlayOpacity: gl.getUniformLocation(classicGlassProgram, "u_overlayOpacity"),
+      u_overlayColorWhite: gl.getUniformLocation(classicGlassProgram, "u_overlayColorWhite"),
+      u_effectCoverage: gl.getUniformLocation(classicGlassProgram, "u_effectCoverage")
+    };
+    
+    // Create buffers
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    const positions = new Float32Array([
+      -1, -1,  1, -1,  -1, 1,
+      -1, 1,   1, -1,   1, 1
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    
+    const texCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+    const texCoords = new Float32Array([
+      0, 1,  1, 1,  0, 0,
+      0, 0,  1, 1,  1, 0
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+    
+    /***** Overlay Setup *****/
+    const overlayCanvas = document.getElementById("overlayCanvas");
+    const ctx2d = overlayCanvas.getContext("2d");
+    
+    /***** Helper Functions for Widgets *****/
+    function getWidgetBounds(widget) {
+      if (widget.type === "text") {
+        ctx2d.font = "30px " + widget.font;
+        const textWidth = ctx2d.measureText(widget.text).width;
+        const textHeight = 30;
+        return {
+          x: widget.x - (textWidth * widget.scale) / 2,
+          y: widget.y - (textHeight * widget.scale) / 2,
+          width: textWidth * widget.scale,
+          height: textHeight * widget.scale
+        };
+      } else if (widget.type === "sticker" || widget.type === "background") {
+        if (widget.image && widget.image.complete) {
+          const width = widget.image.width * widget.scale;
+          const height = widget.image.height * widget.scale;
+          return { x: widget.x - width/2, y: widget.y - height/2, width, height };
+        }
+        return { x: widget.x, y: widget.y, width: 0, height: 0 };
+      }
+    }
+    function widgetContainsPoint(widget, x, y) {
+      const b = getWidgetBounds(widget);
+      return x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+    }
+    function widgetScaleHandleContainsPoint(widget, x, y) {
+      const b = getWidgetBounds(widget);
+      const handleSize = 10;
+      return (x >= b.x + b.width - handleSize && x <= b.x + b.width &&
+              y >= b.y + b.height - handleSize && y <= b.y + b.height);
+    }
+    function updateWidgetControls() {
+      const widgetControls = document.getElementById("widgetControls");
+      const textWidgetControls = document.getElementById("textWidgetControls");
+      const psychedelicControls = document.getElementById("psychedelicControls");
+      const glitchControls = document.getElementById("glitchControls");
+      const glitch2Controls = document.getElementById("glitch2Controls");
+      const lensFlareControls = document.getElementById("lensFlareControls");
+      const classicGlassControls = document.getElementById("classicGlassControls");
+      const updateTextButtonContainer = document.getElementById("updateTextButtonContainer");
+      
+      // Hide all controls first
+      widgetControls.style.display = "none";
+      textWidgetControls.style.display = "none";
+      psychedelicControls.style.display = "none";
+      glitchControls.style.display = "none";
+      glitch2Controls.style.display = "none";
+      lensFlareControls.style.display = "none";
+      classicGlassControls.style.display = "none";
+      updateTextButtonContainer.style.display = "none";
+      
+      // Show widget controls by default
+      widgetControls.style.display = "block";
+      
+      if (selectedWidget) {
+        if (selectedWidget.type === "text") {
+          textWidgetControls.style.display = "block";
+          document.getElementById("textInput").value = selectedWidget.text || "";
+          document.getElementById("fontSelect").value = selectedWidget.font || "Asap Condensed";
+          document.getElementById("colorSelect").value = selectedWidget.color || "#000000";
+          document.getElementById("textRotationSlider").value = selectedWidget.rotation || 0;
+          document.getElementById("textRotationValue").textContent = selectedWidget.rotation || 0;
+          document.getElementById("textOpacitySlider").value = selectedWidget.opacity || 1.0;
+          document.getElementById("textOpacityValue").textContent = selectedWidget.opacity || 1.0;
+          document.getElementById("editBlendModeSelect").value = selectedWidget.blendMode || "normal";
+          // Show update button when a text widget is selected
+          updateTextButtonContainer.style.display = "block";
+        } else if (selectedWidget.type === "background") {
+          // Only show effect controls if an image is uploaded and complete
+          if (selectedWidget.image && selectedWidget.image.complete) {
+            if (selectedWidget.effectPreset === "psychedelic") {
+              psychedelicControls.style.display = "block";
+            } else if (selectedWidget.effectPreset === "glitch") {
+              glitchControls.style.display = "block";
+            } else if (selectedWidget.effectPreset === "glitch2") {
+              glitch2Controls.style.display = "block";
+            } else if (selectedWidget.effectPreset === "lensFlare") {
+              lensFlareControls.style.display = "block";
+            } else if (selectedWidget.effectPreset === "classicGlass") {
+              classicGlassControls.style.display = "block";
+            } else if (selectedWidget.effectPreset === "frostedGlass") {
+              frostedGlassControls.style.display = "block";
+            }
+          }
+        } else if (selectedWidget.type === "sticker") {
+          // Only show sticker controls if an image is uploaded
+          if (selectedWidget.image && selectedWidget.image.complete) {
+            // Show sticker-specific controls here if needed
+          }
+        }
+      }
+    }
+    
+    /***** Background Functions *****/
+    function applyBackgroundPreset(preset) {
+      if (!backgroundWidget) {
+        backgroundWidget = {
+          type: "background",
+          x: bgCanvas.width / 2,
+          y: bgCanvas.height / 2,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          effectPreset: preset
+        };
+        widgets.push(backgroundWidget);
+      } else {
+        backgroundWidget.effectPreset = preset;
+      }
+      
+      // Remove selected class from all buttons
+      document.querySelectorAll('.bg-effect-btn').forEach(btn => {
+        btn.classList.remove('selected');
+      });
+      
+      // Add selected class to clicked button
+      const clickedButton = event.target;
+      clickedButton.classList.add('selected');
+      
+      // Set the active program based on the preset
+      if (preset === "psychedelic") {
+        activeProgram = psychedelicProgram;
+        // Reset psychedelic effect parameters
+        psychedelicParams.zoom = 1.0;
+        psychedelicParams.vignette = 0.5;
+        psychedelicParams.colorShift = 0.3;
+        psychedelicParams.redMultiplier = 1.0;
+        psychedelicParams.greenMultiplier = 1.0;
+        psychedelicParams.blueMultiplier = 1.0;
+        psychedelicParams.pulseSpeed = 0.5;
+        psychedelicParams.rotationSpeed = 0.2;
+        psychedelicParams.colorBalance = 0.5;
+      } else if (preset === "glitch") {
+        activeProgram = glitchProgram;
+        // Reset glitch effect parameters
+        glitchParams.pixelSize = 4.0;
+        glitchParams.scale = 1.3;
+        glitchParams.spacing = 0.26;
+        glitchParams.tintAmount = 1.0;
+        glitchParams.useGeometricPatterns = false;
+        glitchParams.glowIntensity = 2.0;
+        glitchParams.waveSpeed = 0.4;
+        glitchParams.waveAmplitude = 0.007;
+        glitchParams.waveSize = 10.0;
+      } else if (preset === "lensFlare") {
+        activeProgram = lensFlareProgram;
+        // Reset lens flare effect parameters
+        lensFlareParams.flareIntensity = 1.3;
+        lensFlareParams.flarePosition[0] = 1.3;
+        lensFlareParams.flarePosition[1] = -0.33;
+        lensFlareParams.rainbowIntensity = 1.0;
+        lensFlareParams.flareSpeed = 2.0;
+        lensFlareParams.glareSize = 0.6;
+        lensFlareParams.rayCount = 48;
+        lensFlareParams.flareScale = 3.0;
+        lensFlareParams.positionWiggle = 0.01;
+        lensFlareParams.vignetteIntensity = 0.2;
+        lensFlareParams.noiseIntensity = 0.3;
+        lensFlareParams.zoomEffect = 0.3;
+        lensFlareParams.zoomSpeed = 0.06;
+      } else if (preset === "classicGlass") {
+        activeProgram = classicGlassProgram;
+        // Reset classic glass effect parameters
+        classicGlassParams.segments = 10.0;
+        classicGlassParams.rotation = 0.0;
+        classicGlassParams.motionValue = 0.0;
+        classicGlassParams.imageAspect = 1.0;
+        classicGlassParams.overlayOpacity = 50.0;
+        classicGlassParams.overlayColorWhite = [1.0, 1.0, 1.0];
+        classicGlassParams.effectCoverage = 1.0;
+      } else if (preset === "frostedGlass") {
+        activeProgram = frostedGlassProgram;
+        // Reset frosted glass effect parameters
+        frostedGlassParams.blurAmount = 1.0;
+        frostedGlassParams.distortionAmount = 0.02;
+        frostedGlassParams.noiseScale = 5.0;
+        frostedGlassParams.animationSpeed = 0.2;
+        frostedGlassParams.effectCoverage = 1.0;
+      } else if (preset === "none") {
+        activeProgram = null;
+      }
+      
+      // Clear the overlay canvas if an effect is being applied
+      if (preset !== "none") {
+        const ctx2d = overlayCanvas.getContext('2d');
+        ctx2d.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      }
+      
+      selectedWidget = backgroundWidget;
+      updateWidgetControls();
+      renderBackground();
+    }
+    
+    // Create a texture from an image
+    function createTexture(image) {
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      
+      // Set the parameters so we can render any size image
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      
+      // Upload the image into the texture
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      
+      return texture;
+    }
+    
+    // Handle background image upload
+    document.getElementById('backgroundUpload').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          if (!backgroundWidget) {
+            backgroundWidget = {
+              type: "background",
+              x: bgCanvas.width / 2,
+              y: bgCanvas.height / 2,
+              scale: 1,
+              image: img,
+              effectPreset: "psychedelic"
+            };
+            widgets.push(backgroundWidget);
+          } else {
+            backgroundWidget.image = img;
+          }
+          
+          backgroundWidget.texture = createTexture(img);
+          selectedWidget = backgroundWidget;
+          updateWidgetControls();
+          renderBackground();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    
+    function renderBackground() {
+      if (!backgroundWidget) return;
+      
+      if (backgroundWidget.effectPreset === "psychedelic" || 
+          backgroundWidget.effectPreset === "glitch" || 
+          backgroundWidget.effectPreset === "glitch2" ||
+          backgroundWidget.effectPreset === "lensFlare" ||
+          backgroundWidget.effectPreset === "classicGlass" ||
+          backgroundWidget.effectPreset === "frostedGlass") {
+        
+        // Use WebGL for effects
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // Check if we have a texture to use
+        if (!backgroundWidget.image || !backgroundWidget.texture) {
+          // Draw a placeholder if no image is available
+          ctx2d.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+          ctx2d.fillStyle = "#333";
+          ctx2d.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+          ctx2d.strokeStyle = "#f00";
+          ctx2d.lineWidth = 2;
+          ctx2d.strokeRect(2, 2, bgCanvas.width - 4, bgCanvas.height - 4);
+          ctx2d.fillStyle = "#fff";
+          ctx2d.font = "16px sans-serif";
+          ctx2d.textAlign = "center";
+          ctx2d.fillText("Upload an image", bgCanvas.width / 2, bgCanvas.height / 2);
+          return;
+        }
+        
+        // Bind the texture
+        gl.bindTexture(gl.TEXTURE_2D, backgroundWidget.texture);
+        
+        // Set the active program based on the effect
+        if (backgroundWidget.effectPreset === "psychedelic") {
+          gl.useProgram(psychedelicProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(psychedelicLocations.a_position);
+          gl.vertexAttribPointer(psychedelicLocations.a_position, 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(psychedelicLocations.a_texCoord);
+          gl.vertexAttribPointer(psychedelicLocations.a_texCoord, 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(psychedelicLocations.u_resolution, gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(psychedelicLocations.u_zoom, psychedelicParams.zoom);
+          gl.uniform1f(psychedelicLocations.u_vignette, psychedelicParams.vignette);
+          gl.uniform1f(psychedelicLocations.u_colorShift, psychedelicParams.colorShift);
+          gl.uniform1f(psychedelicLocations.u_redMultiplier, psychedelicParams.redMultiplier);
+          gl.uniform1f(psychedelicLocations.u_greenMultiplier, psychedelicParams.greenMultiplier);
+          gl.uniform1f(psychedelicLocations.u_blueMultiplier, psychedelicParams.blueMultiplier);
+          gl.uniform1f(psychedelicLocations.u_pulseSpeed, psychedelicParams.pulseSpeed);
+          gl.uniform1f(psychedelicLocations.u_rotationSpeed, psychedelicParams.rotationSpeed);
+          gl.uniform1f(psychedelicLocations.u_colorBalance, psychedelicParams.colorBalance);
+          gl.uniform1f(psychedelicLocations.u_time, performance.now() / 1000);
+          
+        } else if (backgroundWidget.effectPreset === "glitch") {
+          gl.useProgram(glitchProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(glitchLocations.a_position);
+          gl.vertexAttribPointer(glitchLocations.a_position, 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(glitchLocations.a_texCoord);
+          gl.vertexAttribPointer(glitchLocations.a_texCoord, 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(glitchLocations.u_resolution, gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(glitchLocations.u_time, performance.now() / 1000);
+          gl.uniform1f(glitchLocations.u_pixelSize, glitchParams.pixelSize);
+          gl.uniform1f(glitchLocations.u_scale, glitchParams.scale);
+          gl.uniform1f(glitchLocations.u_spacing, glitchParams.spacing);
+          gl.uniform3fv(glitchLocations.u_tintBlackColor, glitchParams.tintBlackColor);
+          gl.uniform3fv(glitchLocations.u_tintWhiteColor, glitchParams.tintWhiteColor);
+          gl.uniform1f(glitchLocations.u_tintAmount, glitchParams.tintAmount);
+          gl.uniform1i(glitchLocations.u_useGeometricPatterns, glitchParams.useGeometricPatterns);
+          gl.uniform1f(glitchLocations.u_glowIntensity, glitchParams.glowIntensity);
+          gl.uniform1f(glitchLocations.u_waveSpeed, glitchParams.waveSpeed);
+          gl.uniform1f(glitchLocations.u_waveAmplitude, glitchParams.waveAmplitude);
+          gl.uniform1f(glitchLocations.u_waveSize, glitchParams.waveSize);
+          
+        } else if (backgroundWidget.effectPreset === "glitch2") {
+          gl.useProgram(glitch2Program);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(glitch2Locations.a_position);
+          gl.vertexAttribPointer(glitch2Locations.a_position, 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(glitch2Locations.a_texCoord);
+          gl.vertexAttribPointer(glitch2Locations.a_texCoord, 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(glitch2Locations.u_resolution, gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(glitch2Locations.u_time, performance.now() / 1000);
+          gl.uniform1f(glitch2Locations.u_pixelSize, glitch2Params.pixelSize);
+          gl.uniform1f(glitch2Locations.u_glitchIntensity, glitch2Params.glitchIntensity);
+          gl.uniform1f(glitch2Locations.u_scanlineSpeed, glitch2Params.scanlineSpeed);
+          gl.uniform1f(glitch2Locations.u_noiseAmount, glitch2Params.noiseAmount);
+          
+        } else if (backgroundWidget.effectPreset === "lensFlare") {
+          gl.useProgram(lensFlareProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(lensFlareLocations.a_position);
+          gl.vertexAttribPointer(lensFlareLocations.a_position, 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(lensFlareLocations.a_texCoord);
+          gl.vertexAttribPointer(lensFlareLocations.a_texCoord, 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(lensFlareLocations.u_resolution, gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(lensFlareLocations.u_time, performance.now() / 1000);
+          gl.uniform1f(lensFlareLocations.u_flareIntensity, lensFlareParams.flareIntensity);
+          gl.uniform2fv(lensFlareLocations.u_flarePosition, lensFlareParams.flarePosition);
+          gl.uniform1f(lensFlareLocations.u_rainbowIntensity, lensFlareParams.rainbowIntensity);
+          gl.uniform1f(lensFlareLocations.u_flareSpeed, lensFlareParams.flareSpeed);
+          gl.uniform1f(lensFlareLocations.u_glareSize, lensFlareParams.glareSize);
+          gl.uniform1f(lensFlareLocations.u_rayCount, lensFlareParams.rayCount);
+          gl.uniform1f(lensFlareLocations.u_flareScale, lensFlareParams.flareScale);
+          gl.uniform1f(lensFlareLocations.u_positionWiggle, lensFlareParams.positionWiggle);
+          gl.uniform1f(lensFlareLocations.u_vignetteIntensity, lensFlareParams.vignetteIntensity);
+          gl.uniform1f(lensFlareLocations.u_noiseIntensity, lensFlareParams.noiseIntensity);
+          gl.uniform1f(lensFlareLocations.u_zoomEffect, lensFlareParams.zoomEffect);
+          gl.uniform1f(lensFlareLocations.u_zoomSpeed, lensFlareParams.zoomSpeed);
+        } else if (backgroundWidget.effectPreset === "classicGlass") {
+          gl.useProgram(classicGlassProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(classicGlassLocations.a_position);
+          gl.vertexAttribPointer(classicGlassLocations.a_position, 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(classicGlassLocations.a_texCoord);
+          gl.vertexAttribPointer(classicGlassLocations.a_texCoord, 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(classicGlassLocations.u_resolution, gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(classicGlassLocations.u_time, performance.now() / 1000);
+          gl.uniform1f(classicGlassLocations.u_segments, classicGlassParams.segments);
+          gl.uniform1f(classicGlassLocations.u_rotation, classicGlassParams.rotation);
+          gl.uniform1f(classicGlassLocations.u_motionValue, classicGlassParams.motionValue);
+          gl.uniform1f(classicGlassLocations.u_imageAspect, classicGlassParams.imageAspect);
+          gl.uniform1f(classicGlassLocations.u_overlayOpacity, classicGlassParams.overlayOpacity);
+          gl.uniform3fv(classicGlassLocations.u_overlayColorWhite, classicGlassParams.overlayColorWhite);
+          gl.uniform1f(classicGlassLocations.u_effectCoverage, classicGlassParams.effectCoverage);
+        } else if (backgroundWidget.effectPreset === "frostedGlass") {
+          gl.useProgram(frostedGlassProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(gl.getAttribLocation(frostedGlassProgram, "a_position"));
+          gl.vertexAttribPointer(gl.getAttribLocation(frostedGlassProgram, "a_position"), 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(gl.getAttribLocation(frostedGlassProgram, "a_texCoord"));
+          gl.vertexAttribPointer(gl.getAttribLocation(frostedGlassProgram, "a_texCoord"), 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(gl.getUniformLocation(frostedGlassProgram, "u_resolution"), gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_time"), performance.now() / 1000);
+          gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_blurAmount"), frostedGlassParams.blurAmount);
+          gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_distortionAmount"), frostedGlassParams.distortionAmount);
+          gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_noiseScale"), frostedGlassParams.noiseScale);
+          gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_effectCoverage"), frostedGlassParams.effectCoverage);
+          gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_animationSpeed"), frostedGlassParams.animationSpeed);
+        }
+        
+        // Draw the rectangle
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+      } else {
+        // Use 2D canvas for simple rendering
+        ctx2d.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        
+        if (backgroundWidget.image) {
+          const width = backgroundWidget.image.width * backgroundWidget.scale;
+          const height = backgroundWidget.image.height * backgroundWidget.scale;
+          
+          ctx2d.save();
+          ctx2d.globalAlpha = backgroundWidget.opacity;
+          ctx2d.translate(backgroundWidget.x, backgroundWidget.y);
+          ctx2d.rotate(backgroundWidget.rotation * Math.PI / 180);
+          ctx2d.drawImage(backgroundWidget.image, -width/2, -height/2, width, height);
+          ctx2d.restore();
+        }
+      }
+    }
+    
+    // Initialize the background with a default state
+    function initBackground() {
+      // Draw a placeholder until an image is uploaded using the overlay canvas
+      ctx2d.fillStyle = "#333";
+      ctx2d.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      ctx2d.strokeStyle = "#f00";
+      ctx2d.lineWidth = 2;
+      ctx2d.strokeRect(2, 2, overlayCanvas.width - 4, overlayCanvas.height - 4);
+      ctx2d.fillStyle = "#fff";
+      ctx2d.font = "16px sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.fillText("Upload an image", overlayCanvas.width / 2, overlayCanvas.height / 2);
+    }
+    
+    // Initialize the application
+    function init() {
+      initBackground();
+      
+      // Add event listeners for background image upload
+      document.getElementById('backgroundUpload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const img = new Image();
+          img.onload = function() {
+            if (!backgroundWidget) {
+              backgroundWidget = {
+                type: "background",
+                x: bgCanvas.width / 2,
+                y: bgCanvas.height / 2,
+                scale: 1,
+                image: img,
+                effectPreset: "psychedelic"
+              };
+              widgets.push(backgroundWidget);
+            } else {
+              backgroundWidget.image = img;
+            }
+            
+            backgroundWidget.texture = createTexture(img);
+            selectedWidget = backgroundWidget;
+            updateWidgetControls();
+            renderBackground();
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      
+      // Add event listeners for all controls
+      // Psychedelic effect controls
+      document.getElementById("vignetteSlider").addEventListener("input", function() {
+        psychedelicParams.vignette = parseFloat(this.value);
+        document.getElementById("vignetteValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("colorShiftSlider").addEventListener("input", function() {
+        psychedelicParams.colorShift = parseFloat(this.value);
+        document.getElementById("colorShiftValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("zoomSlider").addEventListener("input", function() {
+        psychedelicParams.zoom = parseFloat(this.value);
+        document.getElementById("zoomValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("redMultiplierSlider").addEventListener("input", function() {
+        psychedelicParams.redMultiplier = parseFloat(this.value);
+        document.getElementById("redMultiplierValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("greenMultiplierSlider").addEventListener("input", function() {
+        psychedelicParams.greenMultiplier = parseFloat(this.value);
+        document.getElementById("greenMultiplierValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("blueMultiplierSlider").addEventListener("input", function() {
+        psychedelicParams.blueMultiplier = parseFloat(this.value);
+        document.getElementById("blueMultiplierValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("pulseSpeedSlider").addEventListener("input", function() {
+        psychedelicParams.pulseSpeed = parseFloat(this.value);
+        document.getElementById("pulseSpeedValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("rotationSpeedSlider").addEventListener("input", function() {
+        psychedelicParams.rotationSpeed = parseFloat(this.value);
+        document.getElementById("rotationSpeedValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("colorBalanceSlider").addEventListener("input", function() {
+        psychedelicParams.colorBalance = parseFloat(this.value);
+        document.getElementById("colorBalanceValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      // Glitch effect controls
+      document.getElementById("pixelSizeSlider").addEventListener("input", function() {
+        glitchParams.pixelSize = parseFloat(this.value);
+        document.getElementById("pixelSizeValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("pixelSpacingSlider").addEventListener("input", function() {
+        glitchParams.spacing = parseFloat(this.value);
+        document.getElementById("pixelSpacingValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("glitchScaleSlider").addEventListener("input", function() {
+        glitchParams.scale = parseFloat(this.value);
+        document.getElementById("glitchScaleValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("glowIntensitySlider").addEventListener("input", function() {
+        glitchParams.glowIntensity = parseFloat(this.value);
+        document.getElementById("glowIntensityValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("waveSpeedSlider").addEventListener("input", function() {
+        glitchParams.waveSpeed = parseFloat(this.value);
+        document.getElementById("waveSpeedValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("waveAmplitudeSlider").addEventListener("input", function() {
+        glitchParams.waveAmplitude = parseFloat(this.value);
+        document.getElementById("waveAmplitudeValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("waveSizeSlider").addEventListener("input", function() {
+        glitchParams.waveSize = parseFloat(this.value);
+        document.getElementById("waveSizeValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("tintAmountSlider").addEventListener("input", function() {
+        glitchParams.tintAmount = parseFloat(this.value) / 100;
+        document.getElementById("tintAmountValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("tintBlackColor").addEventListener("input", function() {
+        const hex = this.value;
+        glitchParams.tintBlackColor = [
+          parseInt(hex.slice(1,3), 16) / 255.0,
+          parseInt(hex.slice(3,5), 16) / 255.0,
+          parseInt(hex.slice(5,7), 16) / 255.0
+        ];
+        renderBackground();
+      });
+      
+      document.getElementById("tintWhiteColor").addEventListener("input", function() {
+        const hex = this.value;
+        glitchParams.tintWhiteColor = [
+          parseInt(hex.slice(1,3), 16) / 255.0,
+          parseInt(hex.slice(3,5), 16) / 255.0,
+          parseInt(hex.slice(5,7), 16) / 255.0
+        ];
+        renderBackground();
+      });
+      
+      document.getElementById("patternStyleToggle").addEventListener("change", function() {
+        glitchParams.useGeometricPatterns = this.checked;
+        renderBackground();
+      });
+      
+      // Lens flare effect controls
+      document.getElementById("flareIntensitySlider").addEventListener("input", function() {
+        lensFlareParams.flareIntensity = parseFloat(this.value);
+        document.getElementById("flareIntensityValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("flarePosXSlider").addEventListener("input", function() {
+        lensFlareParams.flarePosition[0] = parseFloat(this.value);
+        document.getElementById("flarePosXValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("flarePosYSlider").addEventListener("input", function() {
+        lensFlareParams.flarePosition[1] = parseFloat(this.value);
+        document.getElementById("flarePosYValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("flareScaleSlider").addEventListener("input", function() {
+        lensFlareParams.flareScale = parseFloat(this.value);
+        document.getElementById("flareScaleValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("positionWiggleSlider").addEventListener("input", function() {
+        lensFlareParams.positionWiggle = parseFloat(this.value);
+        document.getElementById("positionWiggleValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("rainbowIntensitySlider").addEventListener("input", function() {
+        lensFlareParams.rainbowIntensity = parseFloat(this.value);
+        document.getElementById("rainbowIntensityValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("flareSpeedSlider").addEventListener("input", function() {
+        lensFlareParams.flareSpeed = parseFloat(this.value);
+        document.getElementById("flareSpeedValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("glareSizeSlider").addEventListener("input", function() {
+        lensFlareParams.glareSize = parseFloat(this.value);
+        document.getElementById("glareSizeValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("rayCountSlider").addEventListener("input", function() {
+        lensFlareParams.rayCount = parseFloat(this.value);
+        document.getElementById("rayCountValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("vignetteIntensitySlider").addEventListener("input", function() {
+        lensFlareParams.vignetteIntensity = parseFloat(this.value);
+        document.getElementById("vignetteIntensityValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("noiseIntensitySlider").addEventListener("input", function() {
+        lensFlareParams.noiseIntensity = parseFloat(this.value);
+        document.getElementById("noiseIntensityValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("zoomEffectSlider").addEventListener("input", function() {
+        lensFlareParams.zoomEffect = parseFloat(this.value);
+        document.getElementById("zoomEffectValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("zoomSpeedSlider").addEventListener("input", function() {
+        lensFlareParams.zoomSpeed = parseFloat(this.value);
+        document.getElementById("zoomSpeedValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      // Classic glass effect controls
+      document.getElementById("segmentsSlider").addEventListener("input", function() {
+        classicGlassParams.segments = parseFloat(this.value);
+        document.getElementById("segmentsValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("rotationSlider").addEventListener("input", function() {
+        classicGlassParams.rotation = parseFloat(this.value);
+        document.getElementById("rotationValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("motionSlider").addEventListener("input", function() {
+        classicGlassParams.motionValue = parseFloat(this.value);
+        document.getElementById("motionValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("imageAspectSlider").addEventListener("input", function() {
+        classicGlassParams.imageAspect = parseFloat(this.value);
+        document.getElementById("imageAspectValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("overlayOpacitySlider").addEventListener("input", function() {
+        classicGlassParams.overlayOpacity = parseFloat(this.value);
+        document.getElementById("overlayOpacityValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("overlayColorPicker").addEventListener("input", function() {
+        // Convert hex color to RGB array
+        const hex = this.value;
+        const r = parseInt(hex.substr(1,2), 16) / 255;
+        const g = parseInt(hex.substr(3,2), 16) / 255;
+        const b = parseInt(hex.substr(5,2), 16) / 255;
+        classicGlassParams.overlayColorWhite = [r, g, b];
+        renderBackground();
+      });
+      
+      document.getElementById("effectCoverageSlider").addEventListener("input", function() {
+        classicGlassParams.effectCoverage = parseFloat(this.value) / 100.0;
+        document.getElementById("effectCoverageValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("animationSpeedSlider").addEventListener("input", function() {
+        classicGlassParams.animationSpeed = parseFloat(this.value);
+        document.getElementById("animationSpeedValue").textContent = this.value;
+      });
+      
+      // Frosted glass effect controls
+      document.getElementById("blurAmountSlider").addEventListener("input", function() {
+        frostedGlassParams.blurAmount = parseFloat(this.value);
+        document.getElementById("blurAmountValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("distortionAmountSlider").addEventListener("input", function() {
+        frostedGlassParams.distortionAmount = parseFloat(this.value);
+        document.getElementById("distortionAmountValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("noiseScaleSlider").addEventListener("input", function() {
+        frostedGlassParams.noiseScale = parseFloat(this.value);
+        document.getElementById("noiseScaleValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("frostedAnimationSpeedSlider").addEventListener("input", function() {
+        frostedGlassParams.animationSpeed = parseFloat(this.value);
+        document.getElementById("frostedAnimationSpeedValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("frostedEffectCoverageSlider").addEventListener("input", function() {
+        frostedGlassParams.effectCoverage = parseFloat(this.value) / 100.0;
+        document.getElementById("frostedEffectCoverageValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      // Start animation loop for effects that need continuous updates
+      startAnimationLoop();
+      
+      // Initial render
+      renderBackground();
+      renderOverlay();
+    }
+    
+    // Animation loop for continuous effects
+    function startAnimationLoop() {
+      function animate() {
+        if (backgroundWidget) {
+          // Update motion value for classic glass effect
+          if (backgroundWidget.effectPreset === "classicGlass") {
+            classicGlassParams.motionValue = (classicGlassParams.motionValue + classicGlassParams.animationSpeed) % 1.0;
+          }
+          // Update motion value for frosted glass effect
+          else if (backgroundWidget.effectPreset === "frostedGlass") {
+            // The animation speed is handled directly in the shader via u_time
+            // We don't need to update any values here since the shader uses u_time * animationSpeed
+          }
+          // Update and render for all effects
+          renderBackground();
+        }
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+    
+    // Call init when the page loads
+    document.addEventListener('DOMContentLoaded', init);
+    
+    /***** Text Widget Functions *****/
+    function addTextWidget() {
+      const text = document.getElementById("textInput").value;
+      if (!text) return;
+      
+      const font = document.getElementById("fontSelect").value;
+      const color = document.getElementById("colorSelect").value;
+      
+      const textWidget = {
+        type: "text",
+        text: text,
+        font: font,
+        color: color,
+        x: overlayCanvas.width / 2,
+        y: overlayCanvas.height / 2,
+        scale: 1,
+        rotation: 0,
+        opacity: 1.0,
+        blendMode: "normal",
+        effectPreset: "none"
+      };
+      
+      widgets.push(textWidget);
+      selectedWidget = textWidget;
+      updateWidgetControls();
+      renderOverlay();
+    }
+    
+    function updateSelectedTextWidget() {
+      if (!selectedWidget || selectedWidget.type !== "text") return;
+      
+      selectedWidget.text = document.getElementById("textInput").value;
+      selectedWidget.font = document.getElementById("fontSelect").value;
+      selectedWidget.color = document.getElementById("colorSelect").value;
+      selectedWidget.rotation = parseFloat(document.getElementById("textRotationSlider").value);
+      selectedWidget.opacity = parseFloat(document.getElementById("textOpacitySlider").value);
+      selectedWidget.blendMode = document.getElementById("editBlendModeSelect").value;
+      
+      renderOverlay();
+    }
+    
+    function applyTextEffectPreset(preset) {
+      if (!selectedWidget || selectedWidget.type !== "text") return;
+      
+      selectedWidget.effectPreset = preset;
+      renderOverlay();
+    }
+    
+    /***** Sticker Widget Functions *****/
+    function addStickerFromLibrary() {
+      // Create a default sticker (a simple colored square for now)
+      const stickerWidget = {
+        type: "sticker",
+        x: overlayCanvas.width / 2,
+        y: overlayCanvas.height / 2,
+        scale: 1,
+        rotation: 0,
+        color: "#" + Math.floor(Math.random()*16777215).toString(16) // Random color
+      };
+      
+      widgets.push(stickerWidget);
+      selectedWidget = stickerWidget;
+      updateWidgetControls();
+      renderOverlay();
+    }
+    
+    document.getElementById('stickerUpload').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const stickerWidget = {
+            type: "sticker",
+            image: img,
+            x: overlayCanvas.width / 2,
+            y: overlayCanvas.height / 2,
+            scale: 1,
+            rotation: 0
+          };
+          
+          widgets.push(stickerWidget);
+          selectedWidget = stickerWidget;
+          updateWidgetControls();
+          renderOverlay();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    function removeSelectedWidget() {
+      if (!selectedWidget) return;
+      
+      if (selectedWidget.type === "background") {
+        backgroundWidget = null;
+      } else {
+        const index = widgets.indexOf(selectedWidget);
+        if (index > -1) {
+          widgets.splice(index, 1);
+        }
+      }
+      
+      selectedWidget = null;
+      updateWidgetControls();
+      renderOverlay();
+    }
+    
+    /***** Overlay Rendering *****/
+    function renderOverlay() {
+      ctx2d.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      
+      // Draw all widgets
+      widgets.forEach(widget => {
+        if (widget.type === "text") {
+          renderTextWidget(widget);
+        } else if (widget.type === "sticker") {
+          renderStickerWidget(widget);
+        }
+      });
+      
+      // Draw selection outline if a widget is selected
+      if (selectedWidget && selectedWidget.type !== "background") {
+        const bounds = getWidgetBounds(selectedWidget);
+        ctx2d.strokeStyle = "#00f";
+        ctx2d.lineWidth = 2;
+        ctx2d.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        
+        // Draw resize handle
+        ctx2d.fillStyle = "#00f";
+        const handleSize = 10;
+        ctx2d.fillRect(bounds.x + bounds.width - handleSize, bounds.y + bounds.height - handleSize, handleSize, handleSize);
+      }
+    }
+    
+    function renderTextWidget(widget) {
+      ctx2d.save();
+      
+      // Set up text properties
+      ctx2d.font = "30px " + widget.font;
+      ctx2d.fillStyle = widget.color;
+      ctx2d.textAlign = "center";
+      ctx2d.textBaseline = "middle";
+      ctx2d.globalAlpha = widget.opacity || 1.0;
+      ctx2d.globalCompositeOperation = widget.blendMode || "normal";
+      
+      // Apply transformations
+      ctx2d.translate(widget.x, widget.y);
+      ctx2d.scale(widget.scale, widget.scale);
+      if (widget.rotation) {
+        ctx2d.rotate(widget.rotation * Math.PI / 180);
+      }
+      
+      // Draw the text
+      ctx2d.fillText(widget.text, 0, 0);
+      
+      ctx2d.restore();
+    }
+    
+    function renderStickerWidget(widget) {
+      ctx2d.save();
+      
+      // Apply transformations
+      ctx2d.translate(widget.x, widget.y);
+      ctx2d.scale(widget.scale, widget.scale);
+      if (widget.rotation) {
+        ctx2d.rotate(widget.rotation * Math.PI / 180);
+      }
+      
+      // Draw the sticker
+      if (widget.image) {
+        const width = widget.image.width;
+        const height = widget.image.height;
+        ctx2d.drawImage(widget.image, -width/2, -height/2);
+      } else if (widget.color) {
+        // Draw a colored square as a fallback
+        ctx2d.fillStyle = widget.color;
+        ctx2d.fillRect(-25, -25, 50, 50);
+      }
+      
+      ctx2d.restore();
+    }
+    
+    /***** Event Listeners for Widget Interaction *****/
+    overlayCanvas.addEventListener("mousedown", function(e) {
+      const rect = overlayCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Check if we're clicking on the resize handle of the selected widget
+      if (selectedWidget && selectedWidget.type !== "background" && 
+          widgetScaleHandleContainsPoint(selectedWidget, x, y)) {
+        isScaling = true;
+        initialScale = selectedWidget.scale;
+        initialMouseDist = Math.sqrt(
+          Math.pow(x - selectedWidget.x, 2) + 
+          Math.pow(y - selectedWidget.y, 2)
+        );
+        return;
+      }
+      
+      // Check if we're clicking on any widget
+      let clickedWidget = null;
+      
+      // Check regular widgets first (in reverse order to get top-most widget)
+      for (let i = widgets.length - 1; i >= 0; i--) {
+        if (widgetContainsPoint(widgets[i], x, y)) {
+          clickedWidget = widgets[i];
+          break;
+        }
+      }
+      
+      // If no regular widget was clicked, check if background was clicked
+      if (!clickedWidget && backgroundWidget && 
+          widgetContainsPoint(backgroundWidget, x, y)) {
+        clickedWidget = backgroundWidget;
+      }
+      
+      if (clickedWidget) {
+        selectedWidget = clickedWidget;
+        isDragging = true;
+        dragOffset.x = x - clickedWidget.x;
+        dragOffset.y = y - clickedWidget.y;
+      } else {
+        selectedWidget = null;
+      }
+      
+      updateWidgetControls();
+      renderOverlay();
+    });
+    
+    overlayCanvas.addEventListener("mousemove", function(e) {
+      const rect = overlayCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      if (isDragging && selectedWidget) {
+        selectedWidget.x = x - dragOffset.x;
+        selectedWidget.y = y - dragOffset.y;
+        renderOverlay();
+      } else if (isScaling && selectedWidget) {
+        const currentDist = Math.sqrt(
+          Math.pow(x - selectedWidget.x, 2) + 
+          Math.pow(y - selectedWidget.y, 2)
+        );
+        selectedWidget.scale = initialScale * (currentDist / initialMouseDist);
+        renderOverlay();
+      }
+    });
+    
+    window.addEventListener("mouseup", function() {
+      isDragging = false;
+      isScaling = false;
+    });
+    
+    // Add a function to resize canvases based on screen height
+    function resizeCanvases() {
+      // Get the screen height and subtract 80px for padding (40px top, 40px bottom)
+      const screenHeight = window.innerHeight - 80;
+      
+      // Calculate the width to maintain the 720:1280 aspect ratio
+      const aspectRatio = 720 / 1280;
+      const canvasWidth = Math.floor(screenHeight * aspectRatio);
+      
+      // Set the canvas dimensions
+      bgCanvas.width = canvasWidth;
+      bgCanvas.height = screenHeight;
+      overlayCanvas.width = canvasWidth;
+      overlayCanvas.height = screenHeight;
+      
+      // Update the editor div dimensions
+      const editorDiv = document.querySelector('.editor');
+      editorDiv.style.width = canvasWidth + 'px';
+      editorDiv.style.height = screenHeight + 'px';
+      
+      // If there's a background widget with an image, redraw it
+      if (backgroundWidget && backgroundWidget.image && backgroundWidget.image.complete) {
+        renderBackground();
+      }
+    }
+    
+    // Call resizeCanvases on load and when window is resized
+    window.addEventListener('load', resizeCanvases);
+    window.addEventListener('resize', resizeCanvases);
+    
+    // Initialize the background with a default state
+    function initBackground() {
+      // Draw a placeholder until an image is uploaded using the overlay canvas
+      ctx2d.fillStyle = "#333";
+      ctx2d.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+      
+      // Add a placeholder text
+      ctx2d.fillStyle = "#fff";
+      ctx2d.font = "24px Arial";
+      ctx2d.textAlign = "center";
+      ctx2d.fillText("Upload a background image", bgCanvas.width / 2, bgCanvas.height / 2);
+      
+      // Make sure all controls are hidden initially
+      updateWidgetControls();
+    }
+    
+    // Call initBackground to set up the initial state
+    initBackground();
+  </script>
+</body>
+</html>
+        
