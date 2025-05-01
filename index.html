@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=720, height=1280" />
   <title>Content Creation Tool with WebGL Warping</title>
   <!-- Import available Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Asap+Condensed&family=Damion&family=Sigmar+One&family=Lobster&family=Lato&family=Baskervville&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Asap+Condensed&family=Damion&family=Sigmar+One&family=Lobster&family=Lato&family=Baskervville&family=Montserrat&family=Playfair+Display&family=Roboto&family=Open+Sans&family=Poppins&family=Source+Sans+Pro&display=swap" rel="stylesheet">
   <!-- Add Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -198,9 +198,17 @@
               class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
               Classic Glass
             </button>
+            <button onclick="applyBackgroundPreset('water')"
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Water
+            </button>
             <button onclick="applyBackgroundPreset('glitch')"
               class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
               Glitch
+            </button>
+            <button onclick="applyBackgroundPreset('dithering')"
+              class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Dithering
             </button>
             <button onclick="applyBackgroundPreset('lensFlare')"
               class="bg-effect-btn w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -310,7 +318,7 @@
           </div>
         </div>
 
-        <div id="frostedGlassControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200">
+        <div id="frostedGlassControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div class="space-y-3">
             <div class="control-group">
               <label class="block text-sm font-medium" style="color: var(--label-color)">
@@ -409,6 +417,53 @@
               </label>
               <input type="range" id="effectCoverageSlider" min="0" max="100" step="1" value="100"
                 class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <div id="waterControls" class="control-group space-y-2 mt-4 pt-4 border-t border-gray-200">
+          <div class="space-y-3">
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Scale: <span id="scaleValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="scaleSlider" min="0.1" max="10.0" step="0.1" value="1.0" 
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Illumination: <span id="illuminationValue" class="text-gray-500">0.3</span>
+              </label>
+              <input type="range" id="illuminationSlider" min="0" max="1" step="0.05" value="0.3"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Surface Distortion: <span id="surfaceDistortionValue" class="text-gray-500">0.02</span>
+              </label>
+              <input type="range" id="surfaceDistortionSlider" min="0" max="0.1" step="0.01" value="0.02"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Water Distortion: <span id="waterDistortionValue" class="text-gray-500">0.1</span>
+              </label>
+              <input type="range" id="waterDistortionSlider" min="0" max="0.3" step="0.01" value="0.1"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Blueish Tint: <span id="blueishValue" class="text-gray-500">0.3</span>
+              </label>
+              <input type="range" id="blueishSlider" min="0" max="1" step="0.05" value="0.3"
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="control-group">
+              <label class="block text-sm font-medium" style="color: var(--label-color)">
+                Animation Speed: <span id="speedValue" class="text-gray-500">1.0</span>
+              </label>
+              <input type="range" id="speedSlider" min="0.1" max="20.0" step="0.1" value="1.0" 
+                class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
             </div>
           </div>
         </div>
@@ -576,8 +631,8 @@
             <div class="control-group">
               <label for="textInput" class="block text-sm font-medium" style="color: var(--label-color)">Enter Text</label>
               <textarea id="textInput" placeholder="Your text here" rows="2" 
-                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-300"
-                style="color: var(--text-color);"></textarea>
+                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                style="background: var(--input-bg); color: var(--text-color);" placeholder-class="dark:text-gray-400"></textarea>
             </div>
 
             <div class="control-group">
@@ -585,10 +640,16 @@
               <select id="fontSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-800 dark:text-gray-300">
                 <option value="Asap Condensed">Asap Condensed</option>
                 <option value="Damion">Damion</option>
-                <option value="Sigmar One">Sigmar</option>
+                <option value="Sigmar One">Sigmar One</option>
                 <option value="Lobster">Lobster</option>
                 <option value="Lato">Lato</option>
                 <option value="Baskervville">Baskervville</option>
+                <option value="Montserrat">Montserrat</option>
+                <option value="Playfair Display">Playfair Display</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Open Sans">Open Sans</option>
+                <option value="Poppins">Poppins</option>
+                <option value="Source Sans Pro">Source Sans Pro</option>
               </select>
             </div>
 
@@ -762,6 +823,16 @@
       noiseAmount: 0.2
     };
 
+    // Parameters for dithering effect
+    const ditheringParams = {
+      color1: [0.0, 0.0, 0.0, 1.0],
+      color2: [1.0, 1.0, 1.0, 1.0],
+      shape: 1.0,
+      type: 1.0,
+      pxSize: 4.0,
+      pxRounded: false
+    };
+
     // Classic Glass shader parameters
     const classicGlassParams = {
         segments: 50.0,
@@ -787,6 +858,16 @@
         effectCoverage: { min: 0, max: 1, step: 0.01 },
         animationSpeed: { min: 0, max: 2, step: 0.1 }
       }
+    };
+
+    // Water shader parameters
+    const waterParams = {
+      scale: 1.0,
+      illumination: 0.3,
+      surface_distortion: 0.02,
+      water_distortion: 0.1,
+      blueish: 0.3,
+      speed: 1.0
     };
 
     /***** WebGL Setup *****/
@@ -1072,6 +1153,201 @@
         vec3 finalColor = mix(color.rgb, baseColor, u_tintAmount);
         
         gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+    
+    // Dithering shader
+    const ditheringShaderSource = `
+      precision highp float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform vec4 u_color1;
+      uniform vec4 u_color2;
+      uniform float u_shape;
+      uniform float u_type;
+      uniform float u_pxSize;
+      uniform bool u_pxRounded;
+      varying vec2 v_texCoord;
+
+      // Simplex noise functions
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187,  // (3.0-sqrt(3.0))/6.0
+                           0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
+                           -0.577350269189626,  // -1.0 + 2.0 * C.x
+                           0.024390243902439); // 1.0 / 41.0
+        vec2 i  = floor(v + dot(v, C.yy) );
+        vec2 x0 = v -   i + dot(i, C.xx);
+        vec2 i1;
+        i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289(i);
+        vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+              + i.x + vec3(0.0, i1.x, 1.0 ));
+        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+        m = m*m ;
+        m = m*m ;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      // Random function
+      float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+      }
+
+      const float PI = 3.14159265359;
+      const float TWO_PI = 6.28318530718;
+
+      float getSimplexNoise(vec2 uv, float t) {
+        float noise = .5 * snoise(uv - vec2(0., .3 * t));
+        noise += .5 * snoise(2. * uv + vec2(0., .32 * t));
+        return noise;
+      }
+
+      // Bayer matrix values
+      const int bayer2x2_0 = 0;
+      const int bayer2x2_1 = 2;
+      const int bayer2x2_2 = 3;
+      const int bayer2x2_3 = 1;
+
+      const int bayer4x4_0 = 0;
+      const int bayer4x4_1 = 8;
+      const int bayer4x4_2 = 2;
+      const int bayer4x4_3 = 10;
+      const int bayer4x4_4 = 12;
+      const int bayer4x4_5 = 4;
+      const int bayer4x4_6 = 14;
+      const int bayer4x4_7 = 6;
+      const int bayer4x4_8 = 3;
+      const int bayer4x4_9 = 11;
+      const int bayer4x4_10 = 1;
+      const int bayer4x4_11 = 9;
+      const int bayer4x4_12 = 15;
+      const int bayer4x4_13 = 7;
+      const int bayer4x4_14 = 13;
+      const int bayer4x4_15 = 5;
+
+      float getBayerValue(vec2 uv, int size) {
+        ivec2 pos = ivec2(mod(uv, float(size)));
+        int index = pos.y * size + pos.x;
+
+        if (size == 2) {
+          if (index == 0) return float(bayer2x2_0) / 4.0;
+          if (index == 1) return float(bayer2x2_1) / 4.0;
+          if (index == 2) return float(bayer2x2_2) / 4.0;
+          if (index == 3) return float(bayer2x2_3) / 4.0;
+        } else if (size == 4) {
+          if (index == 0) return float(bayer4x4_0) / 16.0;
+          if (index == 1) return float(bayer4x4_1) / 16.0;
+          if (index == 2) return float(bayer4x4_2) / 16.0;
+          if (index == 3) return float(bayer4x4_3) / 16.0;
+          if (index == 4) return float(bayer4x4_4) / 16.0;
+          if (index == 5) return float(bayer4x4_5) / 16.0;
+          if (index == 6) return float(bayer4x4_6) / 16.0;
+          if (index == 7) return float(bayer4x4_7) / 16.0;
+          if (index == 8) return float(bayer4x4_8) / 16.0;
+          if (index == 9) return float(bayer4x4_9) / 16.0;
+          if (index == 10) return float(bayer4x4_10) / 16.0;
+          if (index == 11) return float(bayer4x4_11) / 16.0;
+          if (index == 12) return float(bayer4x4_12) / 16.0;
+          if (index == 13) return float(bayer4x4_13) / 16.0;
+          if (index == 14) return float(bayer4x4_14) / 16.0;
+          if (index == 15) return float(bayer4x4_15) / 16.0;
+        }
+        return 0.0;
+      }
+
+      void main() {  
+        float t = .5 * u_time;  
+        vec2 uv = v_texCoord;
+        vec2 dithering_uv = uv * u_resolution / u_pxSize;
+        vec2 ditheringNoise_uv = u_pxRounded ? floor(dithering_uv) : dithering_uv;
+        vec2 shape_uv = uv;
+
+        if (u_shape < 3.5) {
+          shape_uv *= 0.1;
+        }
+
+        float shape = 0.;    
+        if (u_shape < 1.5) {
+          // Simplex noise
+          shape_uv *= .001;
+          shape = 0.5 + 0.5 * getSimplexNoise(shape_uv, t);
+          shape = smoothstep(0.3, 0.9, shape);
+        } else if (u_shape < 2.5) {  
+          // Warp
+          shape_uv *= .003;
+          for (float i = 1.0; i < 6.0; i++) {  
+            shape_uv.x += 0.6 / i * cos(i * 2.5 * shape_uv.y + t);  
+            shape_uv.y += 0.6 / i * cos(i * 1.5 * shape_uv.x + t);  
+          }  
+          shape = .15 / abs(sin(t - shape_uv.y - shape_uv.x));  
+          shape = smoothstep(0.02, 1., shape);
+        } else if (u_shape < 3.5) {  
+          // Dots  
+          shape_uv *= .05;
+          float stripeIdx = floor(2. * shape_uv.x / TWO_PI);
+          float rand = fract(sin(stripeIdx * 12.9898) * 43758.5453);
+          float speed = sign(rand - .5) * ceil(2. + rand);
+          shape = sin(shape_uv.x) * cos(shape_uv.y + speed * t);  
+          shape = pow(shape, 6.);
+        } else if (u_shape < 4.5) {  
+          // Sine wave
+          shape_uv *= 4.;
+          float wave = cos(.5 * shape_uv.x - 2. * t) * sin(1.5 * shape_uv.x + t) * (.75 + .25 * cos(3. * t));
+          shape = 1. - smoothstep(-1., 1., shape_uv.y + wave);
+        } else if (u_shape < 5.5) {  
+          // Ripple
+          float dist = length(shape_uv);
+          float waves = sin(pow(dist, 1.7) * 7. - 3. * t) * .5 + .5;
+          shape = waves;
+        } else if (u_shape < 6.5) {  
+          // Swirl  
+          float l = length(shape_uv);
+          float angle = 6. * atan(shape_uv.y, shape_uv.x) + 4. * t;
+          float twist = 1.2;
+          float offset = pow(l, -twist) + angle / TWO_PI;  
+          float mid = smoothstep(0., 1., pow(l, twist));
+          shape = mix(0., fract(offset), mid);
+        } else {
+          // Sphere
+          shape_uv *= 2.;
+          vec3 pos = vec3(shape_uv, sqrt(1. - pow(length(shape_uv), 2.)));
+          vec3 lightPos = normalize(vec3(cos(1.5 * t), .8, sin(1.25 * t)));
+          shape = .5 + .5 * dot(lightPos, pos);
+        }  
+        
+        int type = int(floor(u_type));  
+        float dithering = 0.0;  
+        
+        if (type == 1) {
+          dithering = step(random(ditheringNoise_uv), shape);  
+        } else if (type == 2) {
+          dithering = getBayerValue(dithering_uv, 2);  
+        } else if (type == 3) {
+          dithering = getBayerValue(dithering_uv, 4);  
+        } else {
+          dithering = getBayerValue(dithering_uv, 8);  
+        }
+        
+        dithering -= .5;  
+        float res = step(.5, shape + dithering);  
+        
+        vec4 color = mix(u_color1, u_color2, res);
+        gl_FragColor = color;
       }
     `;
     
@@ -1711,6 +1987,7 @@
         gl_FragColor = color;
       }
     `;
+    
     // Frosted Glass shader
     const frostedGlassShaderSource = `
       precision mediump float;
@@ -1810,6 +2087,113 @@
         gl_FragColor = vec4(redColor.r, greenColor.g, blueColor.b, 1.0);
       }
     `;
+    
+    // Water shader
+    const waterShaderSource = `
+      precision mediump float;
+      varying vec2 v_texCoord;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_scale;
+      uniform float u_illumination;
+      uniform float u_surface_distortion;
+      uniform float u_water_distortion;
+      uniform float u_blueish;
+      uniform float u_speed;
+
+      #define TWO_PI 6.28318530718
+      #define PI 3.14159265358979323846
+
+      // Improved noise functions
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+        vec2 i = floor(v + dot(v, C.yy));
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1;
+        i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289(i);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+        m = m*m;
+        m = m*m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+        vec3 g;
+        g.x = a0.x * x0.x + h.x * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      mat2 rotate2D(float r) {
+        return mat2(cos(r), sin(r), -sin(r), cos(r));
+      }
+
+      float surface_noise(vec2 uv, float t, float scale) {
+        vec2 n = vec2(0.1);
+        vec2 N = vec2(0.1);
+        mat2 m = rotate2D(0.5);
+        for (int j = 0; j < 10; j++) {
+          uv *= m;
+          n *= m;
+          vec2 q = uv * scale + float(j) + n + (0.5 + 0.5 * float(j)) * (mod(float(j), 2.0) - 1.0) * t;
+          n += sin(q);
+          N += cos(q) / scale;
+          scale *= 1.2;
+        }
+        return (N.x + N.y + 0.1);
+      }
+
+      void main() {
+        vec2 uv = v_texCoord;
+        float canvasAspect = u_resolution.x / u_resolution.y;
+        
+        float t = 0.002 * u_time * u_speed;  // Multiply time by speed factor
+        vec3 color = vec3(0.0);
+        float opacity = 0.0;
+
+        // Create outer noise for water movement with increased speed
+        float outer_noise = snoise((0.3 + 0.1 * sin(t)) * uv + vec2(0.0, 0.2 * t * u_speed));
+        vec2 surface_noise_uv = 2.0 * uv + (outer_noise * 0.2);
+
+        // Generate complex surface noise with speed factor
+        float surface = surface_noise(surface_noise_uv, t * u_speed, u_scale);
+        surface *= pow(uv.y, 0.3);
+        surface = pow(surface, 2.0);
+
+        // Rest of the shader code remains the same...
+        vec2 distorted_uv = uv;
+        distorted_uv += (u_water_distortion * outer_noise);
+        distorted_uv += (u_surface_distortion * surface);
+
+        vec4 img = texture2D(u_image, distorted_uv);
+        img *= (1.0 + u_illumination * surface);
+        
+        color = img.rgb;
+        color += u_illumination * vec3(1.0 - u_blueish, 1.0, 1.0) * surface;
+        opacity = img.a;
+
+        float edge_width = 0.02;
+        float edge_alpha = smoothstep(0.0, edge_width, distorted_uv.x) * 
+                          smoothstep(1.0, 1.0 - edge_width, distorted_uv.x) *
+                          smoothstep(0.0, edge_width, distorted_uv.y) * 
+                          smoothstep(1.0, 1.0 - edge_width, distorted_uv.y);
+        
+        color *= edge_alpha;
+        opacity *= edge_alpha;
+
+        gl_FragColor = vec4(color, opacity);
+      }
+    `;
     // ... existing code ...
     
     function compileShader(gl, shaderSource, shaderType) {
@@ -1845,35 +2229,42 @@
     const lensFlareFragmentShader = compileShader(gl, lensFlareShaderSource, gl.FRAGMENT_SHADER);
     const classicGlassFragmentShader = compileShader(gl, classicGlassShaderSource, gl.FRAGMENT_SHADER);
     const frostedGlassFragmentShader = compileShader(gl, frostedGlassShaderSource, gl.FRAGMENT_SHADER);
+    const waterFragmentShader = compileShader(gl, waterShaderSource, gl.FRAGMENT_SHADER);
     // Create shader programs
     const psychedelicProgram = createProgram(gl, vertexShader, psychedelicFragmentShader);
     const glitchProgram = createProgram(gl, vertexShader, glitchFragmentShader);
     const lensFlareProgram = createProgram(gl, vertexShader, lensFlareFragmentShader);
     const classicGlassProgram = createProgram(gl, vertexShader, classicGlassFragmentShader);
     const frostedGlassProgram = createProgram(gl, vertexShader, frostedGlassFragmentShader);
+    const waterProgram = createProgram(gl, vertexShader, waterFragmentShader);
     
     // Create Glitch 2 program
     const glitch2FragmentShader = compileShader(gl, glitch2ShaderSource, gl.FRAGMENT_SHADER);
     const glitch2Program = createProgram(gl, vertexShader, glitch2FragmentShader);
     
-    // Current active program
-    let activeProgram = psychedelicProgram;
+    // Create Dithering program
+    const ditheringFragmentShader = compileShader(gl, ditheringShaderSource, gl.FRAGMENT_SHADER);
+    if (!ditheringFragmentShader) {
+      console.error("Failed to compile dithering fragment shader");
+    }
+    const ditheringProgram = createProgram(gl, vertexShader, ditheringFragmentShader);
+    if (!ditheringProgram) {
+      console.error("Failed to create dithering program");
+    }
     
-    // Locations for psychedelic shader
-    const psychedelicLocations = {
-      a_position: gl.getAttribLocation(psychedelicProgram, "a_position"),
-      a_texCoord: gl.getAttribLocation(psychedelicProgram, "a_texCoord"),
-      u_resolution: gl.getUniformLocation(psychedelicProgram, "u_resolution"),
-      u_zoom: gl.getUniformLocation(psychedelicProgram, "u_zoom"),
-      u_vignette: gl.getUniformLocation(psychedelicProgram, "u_vignette"),
-      u_colorShift: gl.getUniformLocation(psychedelicProgram, "u_colorShift"),
-      u_redMultiplier: gl.getUniformLocation(psychedelicProgram, "u_redMultiplier"),
-      u_greenMultiplier: gl.getUniformLocation(psychedelicProgram, "u_greenMultiplier"),
-      u_blueMultiplier: gl.getUniformLocation(psychedelicProgram, "u_blueMultiplier"),
-      u_pulseSpeed: gl.getUniformLocation(psychedelicProgram, "u_pulseSpeed"),
-      u_rotationSpeed: gl.getUniformLocation(psychedelicProgram, "u_rotationSpeed"),
-      u_colorBalance: gl.getUniformLocation(psychedelicProgram, "u_colorBalance"),
-      u_time: gl.getUniformLocation(psychedelicProgram, "u_time")
+    // Get attribute and uniform locations for dithering shader
+    const ditheringLocations = {
+      a_position: gl.getAttribLocation(ditheringProgram, "a_position"),
+      a_texCoord: gl.getAttribLocation(ditheringProgram, "a_texCoord"),
+      u_resolution: gl.getUniformLocation(ditheringProgram, "u_resolution"),
+      u_image: gl.getUniformLocation(ditheringProgram, "u_image"),
+      u_time: gl.getUniformLocation(ditheringProgram, "u_time"),
+      u_color1: gl.getUniformLocation(ditheringProgram, "u_color1"),
+      u_color2: gl.getUniformLocation(ditheringProgram, "u_color2"),
+      u_shape: gl.getUniformLocation(ditheringProgram, "u_shape"),
+      u_type: gl.getUniformLocation(ditheringProgram, "u_type"),
+      u_pxSize: gl.getUniformLocation(ditheringProgram, "u_pxSize"),
+      u_pxRounded: gl.getUniformLocation(ditheringProgram, "u_pxRounded")
     };
     
     // Locations for glitch shader
@@ -2001,6 +2392,7 @@
       const lensFlareControls = document.getElementById('lensFlareControls');
       const frostedGlassControls = document.getElementById('frostedGlassControls');
       const classicGlassControls = document.getElementById('classicGlassControls');
+      const waterControls = document.getElementById('waterControls');
       const updateTextButtonContainer = document.getElementById('updateTextButtonContainer');
       const deleteTextButtonContainer = document.getElementById('deleteTextButtonContainer');
       
@@ -2028,6 +2420,7 @@
       lensFlareControls.style.display = 'none';
       frostedGlassControls.style.display = 'none';
       classicGlassControls.style.display = 'none';
+      waterControls.style.display = 'none';
       
       // Show controls based on the selected widget's effect preset
       if (selectedWidget.effectPreset === 'psychedelic') {
@@ -2040,6 +2433,8 @@
         frostedGlassControls.style.display = 'block';
       } else if (selectedWidget.effectPreset === 'classicGlass') {
         classicGlassControls.style.display = 'block';
+      } else if (selectedWidget.effectPreset === 'water') {
+        waterControls.style.display = 'block';
       }
     }
     
@@ -2128,8 +2523,32 @@
         frostedGlassParams.noiseScale = 44.2;
         frostedGlassParams.animationSpeed = 0.0;
         frostedGlassParams.effectCoverage = 0.5;
+      } else if (preset === "water") {
+        activeProgram = waterProgram;
+        // Reset water effect parameters
+        waterParams.scale = 1.0;
+        waterParams.illumination = 0.3;
+        waterParams.surface_distortion = 0.02;
+        waterParams.water_distortion = 0.1;
+        waterParams.blueish = 0.3;
       } else if (preset === "none") {
         activeProgram = null;
+      } else if (preset === "glitch2") {
+        activeProgram = glitch2Program;
+        // Reset glitch2 effect parameters
+        glitch2Params.pixelSize = 4.0;
+        glitch2Params.glitchIntensity = 0.5;
+        glitch2Params.scanlineSpeed = 1.0;
+        glitch2Params.noiseAmount = 0.2;
+      } else if (preset === "dithering") {
+        activeProgram = ditheringProgram;
+        // Reset dithering effect parameters
+        ditheringParams.color1 = [0.0, 0.0, 0.0, 1.0];
+        ditheringParams.color2 = [1.0, 1.0, 1.0, 1.0];
+        ditheringParams.shape = 1.0;
+        ditheringParams.type = 1.0;
+        ditheringParams.pxSize = 4.0;
+        ditheringParams.pxRounded = false;
       }
       
       // Clear the overlay canvas if an effect is being applied
@@ -2169,18 +2588,32 @@
       reader.onload = function(event) {
         const img = new Image();
         img.onload = function() {
+          // Calculate the scale to fit the image within the canvas while maintaining aspect ratio
+          const canvasAspect = bgCanvas.width / bgCanvas.height;
+          const imageAspect = img.width / img.height;
+          let scale = 1;
+          
+          if (imageAspect > canvasAspect) {
+            // Image is wider than canvas
+            scale = bgCanvas.width / img.width;
+          } else {
+            // Image is taller than canvas
+            scale = bgCanvas.height / img.height;
+          }
+          
           if (!backgroundWidget) {
             backgroundWidget = {
               type: "background",
               x: bgCanvas.width / 2,
               y: bgCanvas.height / 2,
-              scale: 1,
+              scale: scale,
               image: img,
-              effectPreset: "psychedelic"
+              effectPreset: "none"
             };
             widgets.push(backgroundWidget);
           } else {
             backgroundWidget.image = img;
+            backgroundWidget.scale = scale;
           }
           
           backgroundWidget.texture = createTexture(img);
@@ -2202,7 +2635,9 @@
           backgroundWidget.effectPreset === "glitch2" ||
           backgroundWidget.effectPreset === "lensFlare" ||
           backgroundWidget.effectPreset === "classicGlass" ||
-          backgroundWidget.effectPreset === "frostedGlass") {
+          backgroundWidget.effectPreset === "frostedGlass" ||
+          backgroundWidget.effectPreset === "water" ||
+          backgroundWidget.effectPreset === "dithering") {
         
         // Use WebGL for effects
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -2370,6 +2805,66 @@
           gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_noiseScale"), frostedGlassParams.noiseScale);
           gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_effectCoverage"), frostedGlassParams.effectCoverage);
           gl.uniform1f(gl.getUniformLocation(frostedGlassProgram, "u_animationSpeed"), frostedGlassParams.animationSpeed);
+        } else if (backgroundWidget.effectPreset === "water") {
+          gl.useProgram(waterProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(gl.getAttribLocation(waterProgram, "a_position"));
+          gl.vertexAttribPointer(gl.getAttribLocation(waterProgram, "a_position"), 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(gl.getAttribLocation(waterProgram, "a_texCoord"));
+          gl.vertexAttribPointer(gl.getAttribLocation(waterProgram, "a_texCoord"), 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(gl.getUniformLocation(waterProgram, "u_resolution"), gl.canvas.width, gl.canvas.height);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_time"), performance.now() / 1000);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_scale"), waterParams.scale);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_illumination"), waterParams.illumination);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_surface_distortion"), waterParams.surface_distortion);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_water_distortion"), waterParams.water_distortion);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_blueish"), waterParams.blueish);
+          gl.uniform1f(gl.getUniformLocation(waterProgram, "u_speed"), waterParams.speed);
+        } else if (backgroundWidget.effectPreset === "none") {
+          // Use 2D canvas for simple rendering
+          ctx2d.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+          
+          if (backgroundWidget.image) {
+            const width = backgroundWidget.image.width * backgroundWidget.scale;
+            const height = backgroundWidget.image.height * backgroundWidget.scale;
+            
+            // Calculate position to center the image
+            const x = (bgCanvas.width - width) / 2;
+            const y = (bgCanvas.height - height) / 2;
+            
+            ctx2d.save();
+            ctx2d.globalAlpha = backgroundWidget.opacity;
+            ctx2d.drawImage(backgroundWidget.image, x, y, width, height);
+            ctx2d.restore();
+          }
+        } else if (backgroundWidget.effectPreset === "dithering") {
+          gl.useProgram(ditheringProgram);
+          
+          // Set attributes
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.enableVertexAttribArray(ditheringLocations.a_position);
+          gl.vertexAttribPointer(ditheringLocations.a_position, 2, gl.FLOAT, false, 0, 0);
+          
+          gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+          gl.enableVertexAttribArray(ditheringLocations.a_texCoord);
+          gl.vertexAttribPointer(ditheringLocations.a_texCoord, 2, gl.FLOAT, false, 0, 0);
+          
+          // Set uniforms
+          gl.uniform2f(ditheringLocations.u_resolution, gl.canvas.width, gl.canvas.height);
+          gl.uniform1i(ditheringLocations.u_image, 0);
+          gl.uniform1f(ditheringLocations.u_time, performance.now() / 1000);
+          gl.uniform4fv(ditheringLocations.u_color1, ditheringParams.color1);
+          gl.uniform4fv(ditheringLocations.u_color2, ditheringParams.color2);
+          gl.uniform1f(ditheringLocations.u_shape, ditheringParams.shape);
+          gl.uniform1f(ditheringLocations.u_type, ditheringParams.type);
+          gl.uniform1f(ditheringLocations.u_pxSize, ditheringParams.pxSize);
+          gl.uniform1i(ditheringLocations.u_pxRounded, ditheringParams.pxRounded ? 1 : 0);
         }
         
         // Draw the rectangle
@@ -2383,11 +2878,13 @@
           const width = backgroundWidget.image.width * backgroundWidget.scale;
           const height = backgroundWidget.image.height * backgroundWidget.scale;
           
+          // Calculate position to center the image
+          const x = (bgCanvas.width - width) / 2;
+          const y = (bgCanvas.height - height) / 2;
+          
           ctx2d.save();
           ctx2d.globalAlpha = backgroundWidget.opacity;
-          ctx2d.translate(backgroundWidget.x, backgroundWidget.y);
-          ctx2d.rotate(backgroundWidget.rotation * Math.PI / 180);
-          ctx2d.drawImage(backgroundWidget.image, -width/2, -height/2, width, height);
+          ctx2d.drawImage(backgroundWidget.image, x, y, width, height);
           ctx2d.restore();
         }
       }
@@ -2420,18 +2917,32 @@
         reader.onload = function(event) {
           const img = new Image();
           img.onload = function() {
+            // Calculate the scale to fit the image within the canvas while maintaining aspect ratio
+            const canvasAspect = bgCanvas.width / bgCanvas.height;
+            const imageAspect = img.width / img.height;
+            let scale = 1;
+            
+            if (imageAspect > canvasAspect) {
+              // Image is wider than canvas
+              scale = bgCanvas.width / img.width;
+            } else {
+              // Image is taller than canvas
+              scale = bgCanvas.height / img.height;
+            }
+            
             if (!backgroundWidget) {
               backgroundWidget = {
                 type: "background",
                 x: bgCanvas.width / 2,
                 y: bgCanvas.height / 2,
-                scale: 1,
+                scale: scale,
                 image: img,
-                effectPreset: "psychedelic"
+                effectPreset: "none"
               };
               widgets.push(backgroundWidget);
             } else {
               backgroundWidget.image = img;
+              backgroundWidget.scale = scale;
             }
             
             backgroundWidget.texture = createTexture(img);
@@ -2733,6 +3244,43 @@
       document.getElementById("frostedEffectCoverageSlider").addEventListener("input", function() {
         frostedGlassParams.effectCoverage = parseFloat(this.value) / 100.0;
         document.getElementById("frostedEffectCoverageValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      // Water effect controls
+      document.getElementById("scaleSlider").addEventListener("input", function() {
+        waterParams.scale = parseFloat(this.value);
+        document.getElementById("scaleValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("illuminationSlider").addEventListener("input", function() {
+        waterParams.illumination = parseFloat(this.value);
+        document.getElementById("illuminationValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("surfaceDistortionSlider").addEventListener("input", function() {
+        waterParams.surface_distortion = parseFloat(this.value);
+        document.getElementById("surfaceDistortionValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("waterDistortionSlider").addEventListener("input", function() {
+        waterParams.water_distortion = parseFloat(this.value);
+        document.getElementById("waterDistortionValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("blueishSlider").addEventListener("input", function() {
+        waterParams.blueish = parseFloat(this.value);
+        document.getElementById("blueishValue").textContent = this.value;
+        renderBackground();
+      });
+      
+      document.getElementById("speedSlider").addEventListener("input", function() {
+        waterParams.speed = parseFloat(this.value);
+        document.getElementById("speedValue").textContent = this.value;
         renderBackground();
       });
       
@@ -3059,16 +3607,14 @@
     function initBackground() {
       // Draw a placeholder until an image is uploaded using the overlay canvas
       ctx2d.fillStyle = "#333";
-      ctx2d.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
-      
-      // Add a placeholder text
+      ctx2d.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      ctx2d.strokeStyle = "#f00";
+      ctx2d.lineWidth = 2;
+      ctx2d.strokeRect(2, 2, overlayCanvas.width - 4, overlayCanvas.height - 4);
       ctx2d.fillStyle = "#fff";
-      ctx2d.font = "24px Arial";
+      ctx2d.font = "16px sans-serif";
       ctx2d.textAlign = "center";
-      ctx2d.fillText("Upload a background image", bgCanvas.width / 2, bgCanvas.height / 2);
-      
-      // Make sure all controls are hidden initially
-      updateWidgetControls();
+      ctx2d.fillText("Upload an image", overlayCanvas.width / 2, overlayCanvas.height / 2);
     }
     
     // Call initBackground to set up the initial state
