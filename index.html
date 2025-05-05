@@ -862,12 +862,12 @@
 
     // Water shader parameters
     const waterParams = {
-      scale: 1.0,
+      scale: 10.0,
       illumination: 0.3,
-      surface_distortion: 0.02,
-      water_distortion: 0.1,
+      surface_distortion: 0.04,
+      water_distortion: 0.01,
       blueish: 0.3,
-      speed: 1.0
+      speed: 20.0
     };
 
     /***** WebGL Setup *****/
@@ -2526,11 +2526,12 @@
       } else if (preset === "water") {
         activeProgram = waterProgram;
         // Reset water effect parameters
-        waterParams.scale = 1.0;
+        waterParams.scale = 10.0;
         waterParams.illumination = 0.3;
-        waterParams.surface_distortion = 0.02;
-        waterParams.water_distortion = 0.1;
+        waterParams.surface_distortion = 0.04;
+        waterParams.water_distortion = 0.01;
         waterParams.blueish = 0.3;
+        waterParams.speed = 20.0;
       } else if (preset === "none") {
         activeProgram = null;
       } else if (preset === "glitch2") {
